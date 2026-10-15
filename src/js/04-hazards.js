@@ -138,7 +138,7 @@ function updateSpawns(dt) {
   tick('amb', () => { const P = G.P, pt = randomWater(20, 9999, P.x, P.y, 520, 820, 30); if (pt) spawnBallistic(pt[0], pt[1], 0, rand(90, 120)); });
   G.timers.crate -= dt;
   if (G.timers.crate <= 0) { G.timers.crate = rand(9, 13); if (G.crates.length < 4) spawnCrate(); }
-  if (c.pizza) { G.timers.pizza -= dt; if (G.timers.pizza <= 0) { G.timers.pizza = rand(24, 38); spawnPizza(); } }
+  if (c.pizza) { G.timers.pizza -= dt; if (G.timers.pizza <= 0) { G.timers.pizza = rand(24, 38) * (c.pizzaRate || 1); spawnPizza(); } }
 }
 
 /* ---------- hazards ---------- */
@@ -490,7 +490,7 @@ function update(dt) {
   G.t += dt;
   if (G.mode === 'play') {
     G.timeLeft -= dt;
-    if (G.timeLeft <= 0) { G.timeLeft = 0; failLevel('time'); }
+    if (G.timeLeft <= 0) { G.timeLeft = 0; if (G.cfg.scoreAttack) winLevel(); else failLevel('time'); }
   } else if (G.mode === 'won' || G.mode === 'lost') G.endT += dt;
   updatePlayer(dt);
   updateSpawns(dt);

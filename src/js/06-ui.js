@@ -45,7 +45,7 @@ window.addEventListener('keydown', e => {
   if (screenOpen()) {
     if (c === 'Enter' && e.target.tagName !== 'BUTTON') { if (!UI.sTitle.hidden) $('bPlay').click(); else if (!UI.sPort.hidden) $('bNext').click(); else if (!UI.sPause.hidden) resumeGame(); }
     else if ((c === 'Escape' || c === 'KeyP') && !UI.sPause.hidden) { e.preventDefault(); resumeGame(); }
-    else if (c === 'KeyR' && !UI.sPause.hidden) startLevel(G.level);
+    else if (c === 'KeyR' && !UI.sPause.hidden) restartRun();
     else if (c === 'Escape' && !$('sDev').hidden) closeDev();
     else if (c === 'Backquote' && !UI.sTitle.hidden) openDev();
     return;
@@ -92,12 +92,12 @@ $('bPause').addEventListener('click', () => { if (playing()) pauseGame(); });
 $('bMute').addEventListener('click', toggleSound);
 $('bPlay').addEventListener('click', () => { Snd.init(); startLevel(save.level); });
 $('bResume').addEventListener('click', resumeGame);
-$('bRestart').addEventListener('click', () => startLevel(G.level));
+$('bRestart').addEventListener('click', () => restartRun());
 $('bQuit').addEventListener('click', showTitle);
 $('bSound').addEventListener('click', toggleSound);
 $('bMusic').addEventListener('click', () => { save.music = !save.music; Snd.setMusic(save.music); persist(); syncSoundLabels(); });
 $('bMenu').addEventListener('click', showTitle);
-$('bNext').addEventListener('click', () => { Snd.init(); startLevel(G && G.result && !G.result.win ? G.level : save.level); });
+$('bNext').addEventListener('click', () => { Snd.init(); if (G && G.cfg.daily) restartRun(); else startLevel(G && G.result && !G.result.win ? G.level : save.level); });
 let resetArm = 0;
 $('bReset').addEventListener('click', () => {
   const b = $('bReset');
@@ -138,10 +138,11 @@ function showTitle() {
   emit('title');
   setTimeout(() => { try { $('bPlay').focus({ preventScroll: true }); } catch (e) { /* focus is optional */ } }, 30);
 }
-function startLevel(n) {
+function restartRun() { if (G && G.cfg.daily) startDaily(); else startLevel(G.level); }
+function startLevel(n, opts) {
   hideScreens(); portShown = false;
   Snd.init(); Snd.startMusic();
-  newGame(Math.max(1, n | 0), false);
+  newGame(Math.max(1, n | 0), false, opts);
   UI.hud.hidden = false;
   resize();
   for (const k in lastHud) delete lastHud[k];
@@ -153,7 +154,7 @@ function startLevel(n) {
 function pauseGame() {
   if (!playing()) return;
   G.mode = 'paused';
-  $('pzLevel').textContent = 'LEVEL ' + G.level + ' · ' + G.cfg.name;
+  $('pzLevel').textContent = (G.cfg.label || 'LEVEL ' + G.level) + ' · ' + G.cfg.name;
   syncSoundLabels();
   UI.sPause.hidden = false;
   setTimeout(() => { try { $('bResume').focus({ preventScroll: true }); } catch (e) { /* optional */ } }, 30);
@@ -169,6 +170,7 @@ function starSVG(on) {
 }
 function showPort() {
   portShown = true;
+  if (G.cfg.daily) { showDailyPort(); return; }
   const r = G.result, c = G.cfg;
   UI.hud.hidden = true;
   $('pEyebrow').textContent = 'LEVEL ' + G.level + ' · ' + c.name;
@@ -249,13 +251,20 @@ function hudTick(dt) {
   if (hudT > 0 || !G || G.attract || UI.hud.hidden) return;
   hudT = 0.1;
   const P = G.P, c = G.cfg, tot = total();
-  setText(UI.lvl, 'lvl', 'LVL ' + G.level);
+  setText(UI.lvl, 'lvl', c.label || 'LVL ' + G.level);
   setText(UI.name, 'name', c.name);
   setText(UI.time, 'time', fmtTime(G.timeLeft));
   const low = G.timeLeft < 15 && G.mode === 'play';
   if (lastHud.low !== low) { lastHud.low = low; UI.time.classList.toggle('low', low); }
-  setText(UI.quota, 'quota', fmtMoney(tot) + ' / ' + fmtMoney(c.quota));
-  setWidth(UI.quotaFill, 'qf', clamp(tot / c.quota * 100, 0, 100));
+  if (c.scoreAttack) {
+    setText($('hQuotaK'), 'qk', 'SCORE');
+    setText(UI.quota, 'quota', fmtMoney(tot) + (c.best ? ' · BEST ' + fmtMoney(c.best) : ''));
+    setWidth(UI.quotaFill, 'qf', clamp(c.best ? tot / c.best * 100 : (1 - G.timeLeft / c.time) * 100, 0, 100));
+  } else {
+    setText($('hQuotaK'), 'qk', 'QUOTA');
+    setText(UI.quota, 'quota', fmtMoney(tot) + ' / ' + fmtMoney(c.quota));
+    setWidth(UI.quotaFill, 'qf', clamp(tot / c.quota * 100, 0, 100));
+  }
   setText(UI.price, 'price', '$' + G.price.toFixed(2));
   const d = G.price - G.priceAgo;
   setText(UI.priceD, 'pd', (d >= 0 ? '▲ +' : '▼ ') + d.toFixed(2));

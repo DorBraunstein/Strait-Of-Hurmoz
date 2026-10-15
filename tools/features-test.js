@@ -143,6 +143,26 @@ check('replay: a near miss is replayed on the results screen', async page => {
   assert(drawn, 'replay canvas should be drawn');
 });
 
+check('daily: seeded course, rental tanker, score attack, best and streak', async page => {
+  assert(await page.evaluate(() => !document.getElementById('bDaily').hidden), 'daily button should show on the title');
+  await page.click('#bDaily'); await sleep(300);
+  const a = await page.evaluate(() => ({ daily: G.cfg.daily, label: document.getElementById('hLvl').textContent, spd: G.P.maxSpd, mines: G.mines.map(m => Math.round(m.x) + ',' + Math.round(m.y)).join(' ') }));
+  assert(a.daily && a.label === 'DAILY', 'daily run should be flagged and labelled');
+  assert(a.spd === 385, 'daily should use the fixed rental loadout (engine level 2), got ' + a.spd);
+  await page.evaluate(() => restartRun()); await sleep(200);
+  const b = await page.evaluate(() => G.mines.map(m => Math.round(m.x) + ',' + Math.round(m.y)).join(' '));
+  assert(a.mines === b && a.mines.length > 0, 'every daily attempt should get the same mine field');
+  await page.evaluate(() => { G.bonus = 123; G.timeLeft = 0.2; });
+  await sleep(2400);
+  const r = await page.evaluate(() => ({ port: !document.getElementById('sPort').hidden, title: document.getElementById('pTitle').textContent, best: save.daily.best, streak: save.daily.streak, next: document.getElementById('bNext').textContent }));
+  assert(r.port && r.title === 'NEW DAILY BEST', 'time out should end the daily with a result screen (' + r.title + ')');
+  assert(r.best >= 123 && r.streak === 1, 'best score and streak should be saved');
+  assert(r.next.startsWith('TRY AGAIN'), 'daily result should offer TRY AGAIN');
+  await page.click('#bNext'); await sleep(200);
+  assert(await page.evaluate(() => G.cfg.daily && G.mode === 'play'), 'TRY AGAIN should restart the daily');
+  assert(await page.evaluate(() => save.level === 1), 'the daily must not advance the career level');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });

@@ -334,7 +334,8 @@ const UPS = [
   { id: 'bubble', name: 'BUBBLE WRAP', base: 45, vals: [0, 1, 2, 3, 4, 5], fmt: v => v + ' free hits', what: 'per level' }
 ];
 const upCost = (u, l) => Math.round(u.base * Math.pow(2.15, l));
-const upVal = id => { const u = UPS.find(x => x.id === id); return u.vals[Math.min(save.up[id] || 0, u.vals.length - 1)]; };
+let LOADOUT = null; // optional fixed upgrade levels (Daily Strait) used instead of the career's
+const upVal = id => { const u = UPS.find(x => x.id === id), lv = (LOADOUT || save.up)[id] || 0; return u.vals[Math.min(lv, u.vals.length - 1)]; };
 
 /* ---------- levels ---------- */
 const LEVELS = [

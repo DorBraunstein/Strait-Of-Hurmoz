@@ -177,6 +177,10 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .replay{display:grid;gap:6px;margin:0 0 14px}
 .replay canvas{display:block;width:100%;max-width:100%;aspect-ratio:16/7;border:2px solid var(--ink);background:var(--sea)}
 .replay-line{margin:0;font-family:var(--font-display);font-size:clamp(15px,2.4vw,19px);line-height:1.15;color:var(--hull);text-wrap:balance}
+.daily-btn{background:var(--ink);color:var(--paper)}
+.daily-line{margin:10px 0 0;font-size:14px;color:var(--ink-2);font-weight:600}
+.daily-line b{color:var(--ink)}
+.daily-line .streak{color:var(--hull);font-weight:800}
 .skins{display:grid;gap:6px;margin-top:18px}
 .skins-k{font-size:12px;font-weight:800;letter-spacing:.16em;color:var(--magenta)}
 .skin-row{display:flex;flex-wrap:wrap;gap:8px}
@@ -260,7 +264,7 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
   <div class="hud-top">
     <div class="plate plate-level">
       <div class="lvl-row"><span id="hLvl" class="lvl">LVL 1</span><span id="hName" class="lvl-name">TRAINING DAY</span><span id="hTime" class="time">1:30</span></div>
-      <div class="quota"><span class="k">QUOTA</span><div class="quota-bar"><i id="hQuotaFill"></i></div><span id="hQuota">$0M / $60M</span></div>
+      <div class="quota"><span id="hQuotaK" class="k">QUOTA</span><div class="quota-bar"><i id="hQuotaFill"></i></div><span id="hQuota">$0M / $60M</span></div>
       <div class="brent"><span class="k">BRENT $/BBL</span><span id="hPrice" class="price">82.00</span><span id="hPriceD" class="delta">+0.00</span><span id="hHot" class="hot" hidden></span></div>
     </div>
     <div id="hint" class="hint" hidden></div>
@@ -306,8 +310,10 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
     <p class="tagline">Load crude inside the Gulf, run it out through the Strait and sell it to the world before something falls on you.</p>
     <div class="title-actions">
       <button id="bPlay" class="btn primary" type="button">SET SAIL</button>
+      <button id="bDaily" class="btn daily-btn" type="button" hidden>DAILY STRAIT</button>
       <button id="bReset" class="btn ghost" type="button" hidden>New career</button>
     </div>
+    <p id="tDaily" class="daily-line" hidden></p>
     <div class="skins" id="tSkins" hidden>
       <span class="skins-k">YOUR TANKER</span>
       <div class="skin-row" id="tSkinRow"></div>

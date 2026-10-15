@@ -44,9 +44,11 @@ const TRAFFIC_HIT = ['THANKS A LOT!', 'MY PAINT!', 'NOT AGAIN!', 'HEY!!', 'OUCH!
 const TRAFFIC_BUMP = ['WATCH IT!', 'NICE PARKING!', 'LEARN TO STEER!', 'RUDE.', 'HEY!'];
 const TRAFFIC_HONK = ['HONK HONK!', 'BEEP BEEP!', 'RUDE.', 'WE HEARD YOU.', 'HONK BACK!'];
 
-function newGame(level, attract) {
-  const cfg = levelCfg(level);
+function newGame(level, attract, opts) {
+  opts = opts || {};
+  const cfg = opts.cfg || levelCfg(level);
   const [sx, sy] = P_(55.5, 26.0);
+  LOADOUT = opts.loadout || null;
   G = {
     level, cfg, attract: !!attract, mode: attract ? 'attract' : 'play',
     t: 0, timeLeft: cfg.time, earned: 0, bonus: 0, deliveries: 0, dmg: 0, hits: 0, near: 0, kills: 0, ff: 0,
@@ -59,13 +61,17 @@ function newGame(level, attract) {
     radio: null, radioT: 0, radioGap: 0, hint: null, hintStage: 0, endT: 0, result: null, fullShown: false,
     P: makePlayer(sx, sy), attractT: 0
   };
-  const c = cfg;
-  if (!attract) for (let i = 0; i < c.mines; i++) spawnMine(false);
-  for (let i = 0, n = attract ? 9 : c.traffic; i < n; i++) spawnTraffic(true);
+  LOADOUT = null;
+  const c = cfg, keepRandom = Math.random;
+  if (opts.seed) Math.random = mulberry(opts.seed); // same mines and traffic for everyone (Daily Strait)
+  try {
+    if (!attract) for (let i = 0; i < c.mines; i++) spawnMine(false);
+    for (let i = 0, n = attract ? 9 : c.traffic; i < n; i++) spawnTraffic(true);
+  } finally { Math.random = keepRandom; }
   for (const k of ['boat', 'drone', 'cruise', 'ball', 'torp', 'swarm', 'drift', 'amb']) if (c[k]) G.timers[k] = c[k] * rand(0.25, 0.5) + 1.2;
   G.timers.crate = 7; G.timers.pizza = attract ? 3 : rand(16, 26);
   if (!attract) {
-    say('LEVEL ' + level, c.name, C.amber, 2.6);
+    say(c.label || 'LEVEL ' + level, c.name, C.amber, 2.6);
     radio('start');
     if (level === 1) setHint(isTouch() ? 'Drag anywhere to steer. Follow the <b>magenta line</b> to an <b>oil field</b>.' : 'Steer with <b>WASD / arrows</b> or hold the mouse. Follow the <b>magenta line</b> to an <b>oil field</b>.', 9);
     else setHint(c.tip, 5);
@@ -130,7 +136,7 @@ function addBonus(v, x, y, label, col) {
   popup(x, y, (label ? label + ' ' : '') + '+' + fmtMoney(v), col || C.magenta, 18);
   checkQuota();
 }
-function checkQuota() { if (G.mode === 'play' && total() >= G.cfg.quota) winLevel(); }
+function checkQuota() { if (G.mode === 'play' && !G.cfg.scoreAttack && total() >= G.cfg.quota) winLevel(); }
 
 /* ---------- player ---------- */
 function updatePlayer(dt) {
@@ -366,6 +372,7 @@ function deliver(g) {
 function winLevel() {
   if (G.mode !== 'play') return;
   G.mode = 'won'; G.endT = 0;
+  if (G.cfg.daily) { dailyEnd(true, 'time'); Snd.fanfare(); say("TIME!", 'SCORE ' + fmtMoney(G.result.score), C.magenta, 2.2); emit('levelEnd', G.result); return; }
   const P = G.P, hullPct = P.hull / P.maxHull, timePct = G.timeLeft / G.cfg.time;
   const timeBonus = Math.round(G.timeLeft * (0.5 + G.level * 0.08) * 10) / 10;
   const perfect = G.dmg === 0 ? Math.round(total() * 0.15 * 10) / 10 : 0;
@@ -385,6 +392,7 @@ function winLevel() {
 function failLevel(reason) {
   if (G.mode !== 'play') return;
   G.mode = 'lost'; G.endT = 0;
+  if (G.cfg.daily) { dailyEnd(false, reason); say('SUNK', 'SCORE ' + fmtMoney(G.result.score) + ' STILL COUNTS', C.hull, 2.4); setTimeout(() => Snd.trombone(), 700); emit('levelEnd', G.result); return; }
   const payout = Math.round(total() * 0.5 * 10) / 10;
   G.result = { win: false, reason, payout, sum: payout, stars: 0, headline: pick(HEADLINES[reason] || HEADLINES.time) };
   save.cash += payout; save.earned += payout; persist();
