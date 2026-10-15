@@ -58,6 +58,7 @@ function render() {
   drawZones(V);
   drawRoute();
   drawPartsLow(V);
+  emit('drawSea', V);
   for (const c of G.crates) if (inView(V, c.x, c.y, 40)) drawCrate(c);
   for (const m of G.mines) if (inView(V, m.x, m.y, 30)) drawMine(m);
   for (const t of G.torps) drawTorp(t);
@@ -70,12 +71,14 @@ function render() {
   for (const b of G.balls) drawBallMark(b);
   drawPartsHigh(V);
   for (const d of G.drones) if (inView(V, d.x, d.y, 400)) drawDrone(d);
+  emit('drawAir', V);
   for (const b of G.balls) drawBallFall(b);
   drawRings(); drawTracers(); drawPops();
   ctx.restore();
   if (G.cfg.night) drawDark(false);
   else if (G.cfg.fog) drawDark(true);
   drawScreenFx();
+  emit('drawScreen', V);
   if (!G.attract) { drawIndicators(V); drawMsgs(); }
   drawJoystick();
 }

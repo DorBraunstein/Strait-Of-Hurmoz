@@ -151,7 +151,7 @@ function updateMines(dt) {
       m.fuse -= dt;
       if (m.fuse <= 0) {
         m.dead = true;
-        if (m.chain && G.mode === 'play') { save.st.mines++; if (save.st.mines >= 10) ach('mines'); popup(m.x, m.y - 18, 'CHAIN!', C.amber, 16); }
+        if (m.chain && G.mode === 'play') { save.st.mines++; if (save.st.mines >= 10) ach('mines'); popup(m.x, m.y - 18, 'CHAIN!', C.amber, 16); emit('chain'); }
         explode(m.x, m.y, 46, { dmg: 22, src: 'mine', near: 2.2 });
       }
       continue;
@@ -241,6 +241,7 @@ function attachBoat(b) {
   b.st = 'board'; P.boarders++;
   b.say = pick(['HELLO FRIEND!', 'NICE OIL!', 'PULL OVER!', 'SURPRISE!']); b.sayT = 2;
   radio('boarded'); say('BOARDED!', isTouch() ? 'ZIG-ZAG HARD OR HONK' : 'ZIG-ZAG HARD OR HONK [H]', C.hull, 1.6); Snd.alarm();
+  emit('boarded', b);
 }
 function detachBoat(b, byHonk) {
   const P = G.P;
@@ -249,7 +250,7 @@ function detachBoat(b, byHonk) {
   b.x += Math.cos(b.a) * 12; b.y += Math.sin(b.a) * 12;
   b.say = byHonk ? pick(['AAAH!', 'SO LOUD!', 'MY EARS!']) : pick(['WHEEE!', 'SPLASH!', 'NOT FAIR!']); b.sayT = 1.6;
   if (P.boarders === 0) P.shakeAcc = 0;
-  if (G.mode === 'play') { ach('shake'); if (!byHonk) { radio('shaken'); popup(b.x, b.y - 20, 'SHAKEN OFF!', C.magenta, 18); } }
+  if (G.mode === 'play') { ach('shake'); if (!byHonk) { radio('shaken'); popup(b.x, b.y - 20, 'SHAKEN OFF!', C.magenta, 18); } emit('shaken', b, byHonk); }
 }
 function updateDrones(dt) {
   const P = G.P, sp = 275 * Math.sqrt(G.cfg.threat);
@@ -293,7 +294,7 @@ function collectPizza(d) {
   P.hull = Math.min(P.maxHull, P.hull + heal);
   if (G.attract) return;
   popup(P.x, P.y - 42, 'PIZZA! +' + heal + ' HULL', '#2E9E6A', 24); Snd.power(); radio('pizza');
-  save.st.pizza++; ach('pizza');
+  save.st.pizza++; ach('pizza'); emit('pizza');
   for (let i = 0; i < 16; i++) { const a = rand(TAU); part('confetti', P.x, P.y, Math.cos(a) * 160, Math.sin(a) * 160, 0.9, 4, { drag: 2, col: pick(['#E8B04A', '#C2352B', '#2E9E6A']), rot: rand(TAU), vr: rand(-8, 8) }); }
 }
 function updateMissiles(dt) {
@@ -324,7 +325,7 @@ function updateMissiles(dt) {
     let boom = false;
     for (const t of G.traffic) if (trafDist(t, m.x, m.y) < 6) { boom = true; break; }
     if (!boom) for (const b of G.boats) if (!b.dead && d2(b.x, b.y, m.x, m.y) < 18 * 18) { boom = true; break; }
-    if (!boom) for (const d of G.drones) if (!d.dead && !d.pizza && d.st !== 'dive' && d2(d.x, d.y, m.x, m.y) < 20 * 20) { d.dead = true; boom = true; if (G.mode === 'play') { G.ff++; save.st.ff++; addBonus(3 + G.level * 0.3, m.x, m.y - 20, 'FRIENDLY FIRE', C.amber); ach('ff'); } break; }
+    if (!boom) for (const d of G.drones) if (!d.dead && !d.pizza && d.st !== 'dive' && d2(d.x, d.y, m.x, m.y) < 20 * 20) { d.dead = true; boom = true; if (G.mode === 'play') { G.ff++; save.st.ff++; addBonus(3 + G.level * 0.3, m.x, m.y - 20, 'FRIENDLY FIRE', C.amber); ach('ff'); emit('ff'); } break; }
     if (boom) { m.dead = true; explode(m.x, m.y, 40, { dmg: 22, src: 'missile' }); continue; }
     if (m.t > m.fuel) { m.dead = true; explode(m.x, m.y, 26, { dmg: 14, src: 'missile' }); }
     else if (m.x < -500 || m.y < -500 || m.x > WW + 500 || m.y > WH + 500) m.dead = true;
@@ -392,6 +393,7 @@ function collectCrate(c) {
   else if (c.kind === 'flares') { P.flares += 2; popup(P.x, y, 'FLARES +2', C.magenta, 22); }
   else if (c.kind === 'dove') diplomacy();
   else addBonus(8 + G.level * 2, P.x, y, 'LOST CARGO', C.amber);
+  emit('crate', c.kind);
 }
 function diplomacy() {
   let n = 0;
@@ -409,7 +411,7 @@ function fireFlares() {
   if (!G || G.mode !== 'play' || P.dead) return;
   if (P.flareCD > 0) return;
   if (P.flares <= 0) { Snd.nope(); popup(P.x, P.y - 34, 'NO FLARES', C.ink, 16); P.flareCD = 0.5; return; }
-  P.flares--; P.flareCD = 0.7; Snd.flare(); radio('flare');
+  P.flares--; P.flareCD = 0.7; Snd.flare(); radio('flare'); emit('flare');
   const fresh = [];
   for (let i = 0; i < 6; i++) {
     const a = P.a + Math.PI + rand(-1.4, 1.4), sp = rand(150, 280);
@@ -442,6 +444,7 @@ function honk() {
   popup(P.x, P.y - 40, 'HOOOONK', C.magenta, 24);
   for (const b of G.boats) if (!b.dead && d2(b.x, b.y, P.x, P.y) < 340 * 340) { if (b.st === 'board') detachBoat(b, true); else { b.st = 'flee'; b.flee = 3.4; b.say = pick(['AAAH!', 'SO LOUD!']); b.sayT = 1.5; } }
   for (const t of G.traffic) if (d2(t.x, t.y, P.x, P.y) < 480 * 480 && Math.random() < 0.7) { t.say = pick(TRAFFIC_HONK); t.sayT = 2; }
+  emit('honk');
 }
 function updateCIWS(dt) {
   const P = G.P;
@@ -460,6 +463,7 @@ function updateCIWS(dt) {
   G.kills++; save.st.kills++;
   if (save.st.kills >= 25) ach('ciws');
   addBonus(1, best.x, best.y - 16, 'SPLASH ONE', C.chartBlue);
+  emit('ciwsKill', best);
 }
 
 /* ---------- effects bookkeeping + main update ---------- */
@@ -495,6 +499,7 @@ function update(dt) {
   updatePrice(dt); updateHot(dt);
   G.routeT -= dt; if (G.routeT <= 0) updateRoute();
   updateCamera(dt); updateFx(dt);
+  emit('update', dt);
   const live = o => !o.dead;
   G.mines = G.mines.filter(live); G.boats = G.boats.filter(live); G.drones = G.drones.filter(live); G.missiles = G.missiles.filter(live);
   G.balls = G.balls.filter(live); G.subs = G.subs.filter(live); G.torps = G.torps.filter(live); G.crates = G.crates.filter(live); G.flares = G.flares.filter(live);

@@ -1,4 +1,3 @@
-'use strict';
 /* =========================================================
    STRAIT OUTTA HORMUZ — core: utils, chart data, map, routing, save, levels
    ========================================================= */

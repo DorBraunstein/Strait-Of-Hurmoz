@@ -71,6 +71,7 @@ function newGame(level, attract) {
     else setHint(c.tip, 5);
   }
   updateRoute();
+  emit('levelStart', G);
   return G;
 }
 function makePlayer(x, y) {
@@ -194,7 +195,7 @@ function updatePlayer(dt) {
     if (P.cargo >= P.cap - 1e-4 && !G.fullShown) {
       G.fullShown = true;
       if (!G.attract) {
-        say('TANKS FULL', 'SAIL OUT THROUGH THE STRAIT', C.magenta, 1.8); radio('full'); Snd.power();
+        say('TANKS FULL', 'SAIL OUT THROUGH THE STRAIT', C.magenta, 1.8); radio('full'); Snd.power(); emit('full');
         if (G.level === 1 && G.hintStage < 2) { G.hintStage = 2; setHint('Tanks full! Follow the line <b>out through the Strait</b> to a buyer at the edge of the chart.', 9); }
       }
     }
@@ -226,7 +227,7 @@ function collideLand(P) {
   P.vx *= 0.92; P.vy *= 0.92;
   if (-vn > 150 && P.aground <= 0 && G.mode === 'play') {
     P.aground = 1.2; hurt(Math.min(14, -vn / 30), P.x, P.y, 'ground', true);
-    say('RAN AGROUND', '', C.hull, 1.2); radio('aground'); ach('aground');
+    say('RAN AGROUND', '', C.hull, 1.2); radio('aground'); ach('aground'); emit('aground');
     for (let i = 0; i < 12; i++) part('sand', P.x + nx * -20, P.y + ny * -20, rand(-90, 90), rand(-90, 90), 0.6, rand(2, 4), { drag: 3 });
   }
 }
@@ -261,6 +262,7 @@ function hurt(amount, x, y, src, quiet) {
     G.slicks.push({ x: P.x + rand(-10, 10), y: P.y + rand(-10, 10), r: 18 + spill * 90, t: 0, life: 22, seed: Math.random() * 1000 });
     popup(P.x + 30, P.y - 8, 'SPILL -' + fmtBbl(spill), C.ink, 15);
   }
+  emit('hurt', amount, src);
   if (P.hull <= 0) { P.hull = 0; killPlayer(); }
   return true;
 }
@@ -302,6 +304,7 @@ function explode(x, y, r, o) {
   for (const b of G.boats) if (!b.dead && d2(b.x, b.y, x, y) < (r + 14) * (r + 14)) killBoat(b, o.src !== 'player');
   if (r > 90) for (const d of G.drones) if (!d.dead && !d.pizza && d2(d.x, d.y, x, y) < r * r) { d.dead = true; boomFx(d.x, d.y, 26); }
   for (const t of G.traffic) if (trafDist(t, x, y) < r * 0.55) { t.burn = 7; t.say = pick(TRAFFIC_HIT); t.sayT = 2.2; G.chaos += 1.2; }
+  emit('explode', x, y, r, o);
   return hitP;
 }
 function nearMiss(x, y) {
@@ -313,18 +316,20 @@ function nearMiss(x, y) {
   if (G.combo >= 3) say('CLOSE CALL ×' + G.combo, 'SOMEONE GIVE THIS CAPTAIN A MEDAL', C.magenta, 1.2);
   if (Math.random() < 0.35) radio('near');
   if (save.st.near >= 10) ach('close10');
+  emit('nearMiss', x, y);
 }
 function killBoat(b, ff) {
   if (b.dead) return;
   b.dead = true;
   if (b.st === 'board') G.P.boarders = Math.max(0, G.P.boarders - 1);
   boomFx(b.x, b.y, 30);
-  if (ff && G.mode === 'play') { G.ff++; save.st.ff++; addBonus(3 + G.level * 0.3, b.x, b.y - 20, 'FRIENDLY FIRE', C.amber); ach('ff'); }
+  if (ff && G.mode === 'play') { G.ff++; save.st.ff++; addBonus(3 + G.level * 0.3, b.x, b.y - 20, 'FRIENDLY FIRE', C.amber); ach('ff'); emit('ff'); }
 }
 function ach(id) {
   if (!ACH[id] || save.ach[id] || (G && G.attract)) return;
   save.ach[id] = Date.now(); persist();
   Snd.achieve(); showToast('BADGE UNLOCKED', ACH[id][0], ACH[id][1]);
+  emit('badge', id);
 }
 const ACH = {
   first: ['Crude Awakening', 'Deliver your first cargo'], honk: ['Honk If You\'re Happy', 'Honk 50 times'], pizza: ['Pizza Diplomacy', 'Catch a pizza drone'],
@@ -341,8 +346,11 @@ function deliver(g) {
   if (G.attract) { P.cargo = 0; return; }
   if (G.mode !== 'play') return;
   const hot = G.hot && G.hot.g === g;
-  const mult = g.mult * (hot ? 2 : 1);
-  const val = P.cargo * G.price * mult;
+  const ex = { mult: 1, flat: 0 };
+  emit('preDeliver', g, ex, hot);
+  const mult = g.mult * (hot ? 2 : 1) * ex.mult;
+  const val = P.cargo * G.price * mult + ex.flat;
+  const info = { hot, cargo: P.cargo, full: P.cargo >= P.cap * 0.95 };
   G.earned += val; G.deliveries++; save.st.deliv++;
   popup(P.x, P.y - 40, '+' + fmtMoney(val), C.magenta, 34);
   say('SOLD TO ' + g.name, fmtBbl(P.cargo) + ' × $' + G.price.toFixed(2) + (mult !== 1 ? ' × ' + mult.toFixed(2).replace(/0$/, '') : ''), C.magenta, 2);
@@ -352,6 +360,7 @@ function deliver(g) {
   if (hot) { G.hot = null; G.hotT = rand(6, 10); ach('hot'); }
   ach('first');
   if (G.level === 1 && G.hintStage < 3) { G.hintStage = 3; setHint('Ka-ching! Fill the <b>QUOTA</b> bar to finish the level. Go load up again!', 6); }
+  emit('deliver', g, val, info);
   checkQuota();
 }
 function winLevel() {
@@ -371,6 +380,7 @@ function winLevel() {
   if (G.dmg === 0) ach('perfect');
   if (G.level >= 10) ach('lvl10');
   if (save.earned >= 1000) ach('billion');
+  emit('levelEnd', G.result);
 }
 function failLevel(reason) {
   if (G.mode !== 'play') return;
@@ -381,6 +391,7 @@ function failLevel(reason) {
   if (reason === 'time') { say("TIME'S UP", 'THE OIL IS STILL IN THE BOAT', C.hull, 2.4); }
   else { say('SUNK', 'THE FISH SAY THANK YOU', C.hull, 2.4); }
   setTimeout(() => Snd.trombone(), reason === 'sunk' ? 700 : 100);
+  emit('levelEnd', G.result);
 }
 function updatePrice(dt) {
   G.chaos = Math.min(140, G.chaos * Math.exp(-0.045 * dt));
@@ -395,7 +406,7 @@ function updateHot(dt) {
   if (G.hot) { G.hot.t -= dt; if (G.hot.t <= 0) { G.hot = null; G.hotT = rand(8, 14); } }
   else if (G.mode === 'play') {
     G.hotT -= dt;
-    if (G.hotT <= 0) { const g = pick(GATES); G.hot = { g, t: 22 }; say('HOT DEAL', g.name + ' PAYS ×2 FOR 22 SECONDS', C.amber, 2); radio('hot', g.name); Snd.alarm(); }
+    if (G.hotT <= 0) { const g = pick(GATES); G.hot = { g, t: 22 }; say('HOT DEAL', g.name + ' PAYS ×2 FOR 22 SECONDS', C.amber, 2); radio('hot', g.name); Snd.alarm(); emit('hot', g); }
   }
 }
 function updateRoute() {

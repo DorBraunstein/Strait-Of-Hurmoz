@@ -172,7 +172,21 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .badge{font-size:12px;font-weight:700;padding:2px 8px;border:1px solid var(--ink);background:#FBF6E8}
 .badge.off{opacity:.35;border-style:dashed}
-.rotate-tip{display:none}
+.title-foot{display:flex;justify-content:flex-end;margin-top:12px}
+.btn.small{min-height:34px;font-size:13px;padding:0 8px}
+.dev-card{width:min(660px,100%)}
+.dev-note{margin:0 0 14px;color:var(--ink-2);font-weight:600;max-width:60ch}
+.dev-list{display:grid;gap:8px}
+.dev-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;padding:10px 12px;border:1px solid rgba(22,38,58,.3);background:#FBF6E8;cursor:pointer}
+.dev-row:hover{background:#fff}
+.dev-row input{width:22px;height:22px;margin:3px 0 0;accent-color:var(--magenta);cursor:pointer}
+.dev-row input:focus-visible{outline:3px solid var(--magenta);outline-offset:2px}
+.dev-txt{display:grid;gap:1px;min-width:0}
+.dev-txt i{font-style:normal;font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--magenta)}
+.dev-txt b{font-size:16px;letter-spacing:.03em}
+.dev-txt span{font-size:14px;color:var(--ink-2)}
+.dev-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.dev-empty{margin:0;color:var(--ink-2)}
 
 @media (max-width:720px){
   .ups{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -279,6 +293,22 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
     </div>
     <div class="bests" id="tBests"></div>
     <div class="badges" id="tBadges"></div>
+    <div class="title-foot"><button id="bDev" class="btn ghost small" type="button">Developer settings</button></div>
+  </div>
+</section>
+
+<section id="sDev" class="screen" hidden aria-label="Developer settings">
+  <div class="card dev-card">
+    <div class="meta-row"><span>ENGINE ROOM · FEATURE SWITCHES</span><span id="devCount">0 OF 0 ON</span></div>
+    <div class="scale" aria-hidden="true"></div>
+    <h2 class="big">DEV SETTINGS</h2>
+    <p class="dev-note">Switch each feature on or off. Your choices are saved in this browser and apply from the next level you start.</p>
+    <div id="devList" class="dev-list"></div>
+    <div class="dev-actions">
+      <button id="bDevDone" class="btn primary" type="button">DONE</button>
+      <button id="bDevAll" class="btn" type="button">ALL ON</button>
+      <button id="bDevNone" class="btn" type="button">ALL OFF</button>
+    </div>
   </div>
 </section>
 
@@ -319,6 +349,35 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 
 <script>
 'use strict';
+/* =========================================================
+   FEATURES — switchable features (developer settings) and an event bus.
+   Each optional feature registers itself with feature({...}) and listens to
+   game events with onEvt(). The core game only calls emit(); with every
+   feature switched off it plays exactly like the original game.
+   ========================================================= */
+const FEATURES = [];
+const FLAG_KEY = 'strait-outta-hormuz-flags-v1';
+let FLAGS = {};
+try { FLAGS = JSON.parse(localStorage.getItem(FLAG_KEY) || '{}') || {}; } catch (e) { FLAGS = {}; }
+
+function feature(def) { if (!FEATURES.some(f => f.id === def.id)) FEATURES.push(def); }
+/** Is a feature switched on? Everything defaults to on. */
+function feat(id) { return FLAGS[id] !== false; }
+function setFlag(id, on) {
+  FLAGS[id] = !!on;
+  try { localStorage.setItem(FLAG_KEY, JSON.stringify(FLAGS)); } catch (e) { /* storage unavailable: flags last for this visit */ }
+  emit('flags', id, !!on);
+}
+
+const BUS = {};
+function onEvt(name, fn) { (BUS[name] || (BUS[name] = [])).push(fn); }
+function emit(name, a, b, c, d) {
+  const list = BUS[name];
+  if (!list) return;
+  for (let i = 0; i < list.length; i++) {
+    try { list[i](a, b, c, d); } catch (err) { console.error('[' + name + ']', err); }
+  }
+}
 /* =========================================================
    STRAIT OUTTA HORMUZ — core: utils, chart data, map, routing, save, levels
    ========================================================= */
@@ -917,6 +976,7 @@ function newGame(level, attract) {
     else setHint(c.tip, 5);
   }
   updateRoute();
+  emit('levelStart', G);
   return G;
 }
 function makePlayer(x, y) {
@@ -1040,7 +1100,7 @@ function updatePlayer(dt) {
     if (P.cargo >= P.cap - 1e-4 && !G.fullShown) {
       G.fullShown = true;
       if (!G.attract) {
-        say('TANKS FULL', 'SAIL OUT THROUGH THE STRAIT', C.magenta, 1.8); radio('full'); Snd.power();
+        say('TANKS FULL', 'SAIL OUT THROUGH THE STRAIT', C.magenta, 1.8); radio('full'); Snd.power(); emit('full');
         if (G.level === 1 && G.hintStage < 2) { G.hintStage = 2; setHint('Tanks full! Follow the line <b>out through the Strait</b> to a buyer at the edge of the chart.', 9); }
       }
     }
@@ -1072,7 +1132,7 @@ function collideLand(P) {
   P.vx *= 0.92; P.vy *= 0.92;
   if (-vn > 150 && P.aground <= 0 && G.mode === 'play') {
     P.aground = 1.2; hurt(Math.min(14, -vn / 30), P.x, P.y, 'ground', true);
-    say('RAN AGROUND', '', C.hull, 1.2); radio('aground'); ach('aground');
+    say('RAN AGROUND', '', C.hull, 1.2); radio('aground'); ach('aground'); emit('aground');
     for (let i = 0; i < 12; i++) part('sand', P.x + nx * -20, P.y + ny * -20, rand(-90, 90), rand(-90, 90), 0.6, rand(2, 4), { drag: 3 });
   }
 }
@@ -1107,6 +1167,7 @@ function hurt(amount, x, y, src, quiet) {
     G.slicks.push({ x: P.x + rand(-10, 10), y: P.y + rand(-10, 10), r: 18 + spill * 90, t: 0, life: 22, seed: Math.random() * 1000 });
     popup(P.x + 30, P.y - 8, 'SPILL -' + fmtBbl(spill), C.ink, 15);
   }
+  emit('hurt', amount, src);
   if (P.hull <= 0) { P.hull = 0; killPlayer(); }
   return true;
 }
@@ -1148,6 +1209,7 @@ function explode(x, y, r, o) {
   for (const b of G.boats) if (!b.dead && d2(b.x, b.y, x, y) < (r + 14) * (r + 14)) killBoat(b, o.src !== 'player');
   if (r > 90) for (const d of G.drones) if (!d.dead && !d.pizza && d2(d.x, d.y, x, y) < r * r) { d.dead = true; boomFx(d.x, d.y, 26); }
   for (const t of G.traffic) if (trafDist(t, x, y) < r * 0.55) { t.burn = 7; t.say = pick(TRAFFIC_HIT); t.sayT = 2.2; G.chaos += 1.2; }
+  emit('explode', x, y, r, o);
   return hitP;
 }
 function nearMiss(x, y) {
@@ -1159,18 +1221,20 @@ function nearMiss(x, y) {
   if (G.combo >= 3) say('CLOSE CALL ×' + G.combo, 'SOMEONE GIVE THIS CAPTAIN A MEDAL', C.magenta, 1.2);
   if (Math.random() < 0.35) radio('near');
   if (save.st.near >= 10) ach('close10');
+  emit('nearMiss', x, y);
 }
 function killBoat(b, ff) {
   if (b.dead) return;
   b.dead = true;
   if (b.st === 'board') G.P.boarders = Math.max(0, G.P.boarders - 1);
   boomFx(b.x, b.y, 30);
-  if (ff && G.mode === 'play') { G.ff++; save.st.ff++; addBonus(3 + G.level * 0.3, b.x, b.y - 20, 'FRIENDLY FIRE', C.amber); ach('ff'); }
+  if (ff && G.mode === 'play') { G.ff++; save.st.ff++; addBonus(3 + G.level * 0.3, b.x, b.y - 20, 'FRIENDLY FIRE', C.amber); ach('ff'); emit('ff'); }
 }
 function ach(id) {
   if (!ACH[id] || save.ach[id] || (G && G.attract)) return;
   save.ach[id] = Date.now(); persist();
   Snd.achieve(); showToast('BADGE UNLOCKED', ACH[id][0], ACH[id][1]);
+  emit('badge', id);
 }
 const ACH = {
   first: ['Crude Awakening', 'Deliver your first cargo'], honk: ['Honk If You\'re Happy', 'Honk 50 times'], pizza: ['Pizza Diplomacy', 'Catch a pizza drone'],
@@ -1187,8 +1251,11 @@ function deliver(g) {
   if (G.attract) { P.cargo = 0; return; }
   if (G.mode !== 'play') return;
   const hot = G.hot && G.hot.g === g;
-  const mult = g.mult * (hot ? 2 : 1);
-  const val = P.cargo * G.price * mult;
+  const ex = { mult: 1, flat: 0 };
+  emit('preDeliver', g, ex, hot);
+  const mult = g.mult * (hot ? 2 : 1) * ex.mult;
+  const val = P.cargo * G.price * mult + ex.flat;
+  const info = { hot, cargo: P.cargo, full: P.cargo >= P.cap * 0.95 };
   G.earned += val; G.deliveries++; save.st.deliv++;
   popup(P.x, P.y - 40, '+' + fmtMoney(val), C.magenta, 34);
   say('SOLD TO ' + g.name, fmtBbl(P.cargo) + ' × $' + G.price.toFixed(2) + (mult !== 1 ? ' × ' + mult.toFixed(2).replace(/0$/, '') : ''), C.magenta, 2);
@@ -1198,6 +1265,7 @@ function deliver(g) {
   if (hot) { G.hot = null; G.hotT = rand(6, 10); ach('hot'); }
   ach('first');
   if (G.level === 1 && G.hintStage < 3) { G.hintStage = 3; setHint('Ka-ching! Fill the <b>QUOTA</b> bar to finish the level. Go load up again!', 6); }
+  emit('deliver', g, val, info);
   checkQuota();
 }
 function winLevel() {
@@ -1217,6 +1285,7 @@ function winLevel() {
   if (G.dmg === 0) ach('perfect');
   if (G.level >= 10) ach('lvl10');
   if (save.earned >= 1000) ach('billion');
+  emit('levelEnd', G.result);
 }
 function failLevel(reason) {
   if (G.mode !== 'play') return;
@@ -1227,6 +1296,7 @@ function failLevel(reason) {
   if (reason === 'time') { say("TIME'S UP", 'THE OIL IS STILL IN THE BOAT', C.hull, 2.4); }
   else { say('SUNK', 'THE FISH SAY THANK YOU', C.hull, 2.4); }
   setTimeout(() => Snd.trombone(), reason === 'sunk' ? 700 : 100);
+  emit('levelEnd', G.result);
 }
 function updatePrice(dt) {
   G.chaos = Math.min(140, G.chaos * Math.exp(-0.045 * dt));
@@ -1241,7 +1311,7 @@ function updateHot(dt) {
   if (G.hot) { G.hot.t -= dt; if (G.hot.t <= 0) { G.hot = null; G.hotT = rand(8, 14); } }
   else if (G.mode === 'play') {
     G.hotT -= dt;
-    if (G.hotT <= 0) { const g = pick(GATES); G.hot = { g, t: 22 }; say('HOT DEAL', g.name + ' PAYS ×2 FOR 22 SECONDS', C.amber, 2); radio('hot', g.name); Snd.alarm(); }
+    if (G.hotT <= 0) { const g = pick(GATES); G.hot = { g, t: 22 }; say('HOT DEAL', g.name + ' PAYS ×2 FOR 22 SECONDS', C.amber, 2); radio('hot', g.name); Snd.alarm(); emit('hot', g); }
   }
 }
 function updateRoute() {
@@ -1424,7 +1494,7 @@ function updateMines(dt) {
       m.fuse -= dt;
       if (m.fuse <= 0) {
         m.dead = true;
-        if (m.chain && G.mode === 'play') { save.st.mines++; if (save.st.mines >= 10) ach('mines'); popup(m.x, m.y - 18, 'CHAIN!', C.amber, 16); }
+        if (m.chain && G.mode === 'play') { save.st.mines++; if (save.st.mines >= 10) ach('mines'); popup(m.x, m.y - 18, 'CHAIN!', C.amber, 16); emit('chain'); }
         explode(m.x, m.y, 46, { dmg: 22, src: 'mine', near: 2.2 });
       }
       continue;
@@ -1514,6 +1584,7 @@ function attachBoat(b) {
   b.st = 'board'; P.boarders++;
   b.say = pick(['HELLO FRIEND!', 'NICE OIL!', 'PULL OVER!', 'SURPRISE!']); b.sayT = 2;
   radio('boarded'); say('BOARDED!', isTouch() ? 'ZIG-ZAG HARD OR HONK' : 'ZIG-ZAG HARD OR HONK [H]', C.hull, 1.6); Snd.alarm();
+  emit('boarded', b);
 }
 function detachBoat(b, byHonk) {
   const P = G.P;
@@ -1522,7 +1593,7 @@ function detachBoat(b, byHonk) {
   b.x += Math.cos(b.a) * 12; b.y += Math.sin(b.a) * 12;
   b.say = byHonk ? pick(['AAAH!', 'SO LOUD!', 'MY EARS!']) : pick(['WHEEE!', 'SPLASH!', 'NOT FAIR!']); b.sayT = 1.6;
   if (P.boarders === 0) P.shakeAcc = 0;
-  if (G.mode === 'play') { ach('shake'); if (!byHonk) { radio('shaken'); popup(b.x, b.y - 20, 'SHAKEN OFF!', C.magenta, 18); } }
+  if (G.mode === 'play') { ach('shake'); if (!byHonk) { radio('shaken'); popup(b.x, b.y - 20, 'SHAKEN OFF!', C.magenta, 18); } emit('shaken', b, byHonk); }
 }
 function updateDrones(dt) {
   const P = G.P, sp = 275 * Math.sqrt(G.cfg.threat);
@@ -1566,7 +1637,7 @@ function collectPizza(d) {
   P.hull = Math.min(P.maxHull, P.hull + heal);
   if (G.attract) return;
   popup(P.x, P.y - 42, 'PIZZA! +' + heal + ' HULL', '#2E9E6A', 24); Snd.power(); radio('pizza');
-  save.st.pizza++; ach('pizza');
+  save.st.pizza++; ach('pizza'); emit('pizza');
   for (let i = 0; i < 16; i++) { const a = rand(TAU); part('confetti', P.x, P.y, Math.cos(a) * 160, Math.sin(a) * 160, 0.9, 4, { drag: 2, col: pick(['#E8B04A', '#C2352B', '#2E9E6A']), rot: rand(TAU), vr: rand(-8, 8) }); }
 }
 function updateMissiles(dt) {
@@ -1597,7 +1668,7 @@ function updateMissiles(dt) {
     let boom = false;
     for (const t of G.traffic) if (trafDist(t, m.x, m.y) < 6) { boom = true; break; }
     if (!boom) for (const b of G.boats) if (!b.dead && d2(b.x, b.y, m.x, m.y) < 18 * 18) { boom = true; break; }
-    if (!boom) for (const d of G.drones) if (!d.dead && !d.pizza && d.st !== 'dive' && d2(d.x, d.y, m.x, m.y) < 20 * 20) { d.dead = true; boom = true; if (G.mode === 'play') { G.ff++; save.st.ff++; addBonus(3 + G.level * 0.3, m.x, m.y - 20, 'FRIENDLY FIRE', C.amber); ach('ff'); } break; }
+    if (!boom) for (const d of G.drones) if (!d.dead && !d.pizza && d.st !== 'dive' && d2(d.x, d.y, m.x, m.y) < 20 * 20) { d.dead = true; boom = true; if (G.mode === 'play') { G.ff++; save.st.ff++; addBonus(3 + G.level * 0.3, m.x, m.y - 20, 'FRIENDLY FIRE', C.amber); ach('ff'); emit('ff'); } break; }
     if (boom) { m.dead = true; explode(m.x, m.y, 40, { dmg: 22, src: 'missile' }); continue; }
     if (m.t > m.fuel) { m.dead = true; explode(m.x, m.y, 26, { dmg: 14, src: 'missile' }); }
     else if (m.x < -500 || m.y < -500 || m.x > WW + 500 || m.y > WH + 500) m.dead = true;
@@ -1665,6 +1736,7 @@ function collectCrate(c) {
   else if (c.kind === 'flares') { P.flares += 2; popup(P.x, y, 'FLARES +2', C.magenta, 22); }
   else if (c.kind === 'dove') diplomacy();
   else addBonus(8 + G.level * 2, P.x, y, 'LOST CARGO', C.amber);
+  emit('crate', c.kind);
 }
 function diplomacy() {
   let n = 0;
@@ -1682,7 +1754,7 @@ function fireFlares() {
   if (!G || G.mode !== 'play' || P.dead) return;
   if (P.flareCD > 0) return;
   if (P.flares <= 0) { Snd.nope(); popup(P.x, P.y - 34, 'NO FLARES', C.ink, 16); P.flareCD = 0.5; return; }
-  P.flares--; P.flareCD = 0.7; Snd.flare(); radio('flare');
+  P.flares--; P.flareCD = 0.7; Snd.flare(); radio('flare'); emit('flare');
   const fresh = [];
   for (let i = 0; i < 6; i++) {
     const a = P.a + Math.PI + rand(-1.4, 1.4), sp = rand(150, 280);
@@ -1715,6 +1787,7 @@ function honk() {
   popup(P.x, P.y - 40, 'HOOOONK', C.magenta, 24);
   for (const b of G.boats) if (!b.dead && d2(b.x, b.y, P.x, P.y) < 340 * 340) { if (b.st === 'board') detachBoat(b, true); else { b.st = 'flee'; b.flee = 3.4; b.say = pick(['AAAH!', 'SO LOUD!']); b.sayT = 1.5; } }
   for (const t of G.traffic) if (d2(t.x, t.y, P.x, P.y) < 480 * 480 && Math.random() < 0.7) { t.say = pick(TRAFFIC_HONK); t.sayT = 2; }
+  emit('honk');
 }
 function updateCIWS(dt) {
   const P = G.P;
@@ -1733,6 +1806,7 @@ function updateCIWS(dt) {
   G.kills++; save.st.kills++;
   if (save.st.kills >= 25) ach('ciws');
   addBonus(1, best.x, best.y - 16, 'SPLASH ONE', C.chartBlue);
+  emit('ciwsKill', best);
 }
 
 /* ---------- effects bookkeeping + main update ---------- */
@@ -1768,6 +1842,7 @@ function update(dt) {
   updatePrice(dt); updateHot(dt);
   G.routeT -= dt; if (G.routeT <= 0) updateRoute();
   updateCamera(dt); updateFx(dt);
+  emit('update', dt);
   const live = o => !o.dead;
   G.mines = G.mines.filter(live); G.boats = G.boats.filter(live); G.drones = G.drones.filter(live); G.missiles = G.missiles.filter(live);
   G.balls = G.balls.filter(live); G.subs = G.subs.filter(live); G.torps = G.torps.filter(live); G.crates = G.crates.filter(live); G.flares = G.flares.filter(live);
@@ -1834,6 +1909,7 @@ function render() {
   drawZones(V);
   drawRoute();
   drawPartsLow(V);
+  emit('drawSea', V);
   for (const c of G.crates) if (inView(V, c.x, c.y, 40)) drawCrate(c);
   for (const m of G.mines) if (inView(V, m.x, m.y, 30)) drawMine(m);
   for (const t of G.torps) drawTorp(t);
@@ -1846,12 +1922,14 @@ function render() {
   for (const b of G.balls) drawBallMark(b);
   drawPartsHigh(V);
   for (const d of G.drones) if (inView(V, d.x, d.y, 400)) drawDrone(d);
+  emit('drawAir', V);
   for (const b of G.balls) drawBallFall(b);
   drawRings(); drawTracers(); drawPops();
   ctx.restore();
   if (G.cfg.night) drawDark(false);
   else if (G.cfg.fog) drawDark(true);
   drawScreenFx();
+  emit('drawScreen', V);
   if (!G.attract) { drawIndicators(V); drawMsgs(); }
   drawJoystick();
 }
@@ -2606,7 +2684,7 @@ function readInput() {
   return { dx: 0, dy: 0, thr: 0 };
 }
 const playing = () => G && !G.attract && G.mode === 'play';
-const screenOpen = () => !UI.sTitle.hidden || !UI.sPause.hidden || !UI.sPort.hidden;
+const screenOpen = () => !UI.sTitle.hidden || !UI.sPause.hidden || !UI.sPort.hidden || !$('sDev').hidden;
 
 /* ---------- input wiring ---------- */
 window.addEventListener('keydown', e => {
@@ -2618,6 +2696,8 @@ window.addEventListener('keydown', e => {
     if (c === 'Enter' && e.target.tagName !== 'BUTTON') { if (!UI.sTitle.hidden) $('bPlay').click(); else if (!UI.sPort.hidden) $('bNext').click(); else if (!UI.sPause.hidden) resumeGame(); }
     else if ((c === 'Escape' || c === 'KeyP') && !UI.sPause.hidden) { e.preventDefault(); resumeGame(); }
     else if (c === 'KeyR' && !UI.sPause.hidden) startLevel(G.level);
+    else if (c === 'Escape' && !$('sDev').hidden) closeDev();
+    else if (c === 'Backquote' && !UI.sTitle.hidden) openDev();
     return;
   }
   Input.keys[c] = true;
@@ -2689,7 +2769,7 @@ function syncSoundLabels() {
 }
 
 /* ---------- screens ---------- */
-function hideScreens() { UI.sTitle.hidden = true; UI.sPause.hidden = true; UI.sPort.hidden = true; }
+function hideScreens() { UI.sTitle.hidden = true; UI.sPause.hidden = true; UI.sPort.hidden = true; $('sDev').hidden = true; }
 function showTitle() {
   hideScreens(); portShown = false;
   newGame(1, true);
@@ -2705,6 +2785,7 @@ function showTitle() {
   const badges = $('tBadges'); badges.textContent = '';
   for (const id of Object.keys(ACH)) { const s = document.createElement('span'); s.className = 'badge' + (save.ach[id] ? '' : ' off'); s.textContent = save.ach[id] ? ACH[id][0] : '?'; s.title = ACH[id][1]; badges.append(s); }
   keepAwake(false);
+  emit('title');
   setTimeout(() => { try { $('bPlay').focus({ preventScroll: true }); } catch (e) { /* focus is optional */ } }, 30);
 }
 function startLevel(n) {
@@ -2753,6 +2834,7 @@ function showPort() {
   const row = (k, v, cls) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; if (cls) { dt.className = cls; dd.className = cls; } L.append(dt, dd); };
   row('Crude sold (' + G.deliveries + (G.deliveries === 1 ? ' cargo' : ' cargoes') + ')', fmtMoney(G.earned));
   row('Close calls, shoot-downs, lucky finds', fmtMoney(G.bonus));
+  emit('portLedger', row, r);
   if (r.win) {
     row('Time bonus (' + Math.ceil(G.timeLeft) + 's left)', fmtMoney(r.timeBonus));
     if (r.perfect) row('Not-a-scratch bonus', fmtMoney(r.perfect));
@@ -2765,6 +2847,7 @@ function showPort() {
   nb.innerHTML = '';
   nb.append(r.win ? 'LEVEL ' + save.level + ' ▶ ' : 'RETRY LEVEL ' + G.level + ' ');
   const kb = document.createElement('kbd'); kb.textContent = 'ENTER'; nb.append(kb);
+  emit('port', r);
   UI.sPort.hidden = false; UI.sPort.scrollTop = 0;
   keepAwake(false);
   setTimeout(() => { try { nb.focus({ preventScroll: true }); } catch (e) { /* optional */ } }, 40);
@@ -2841,6 +2924,7 @@ function hudTick(dt) {
   if (P.loading && P.cargo < P.cap - 1e-4) chips += '<span class="chip warn">LOADING</span>';
   else if (P.cargo >= P.cap - 1e-4) chips += '<span class="chip good">FULL</span>';
   if (G.combo > 1) chips += '<span class="chip warn">COMBO ×' + G.combo + '</span>';
+  const extra = []; emit('chips', extra); chips += extra.join('');
   if (lastHud.chips !== chips) { lastHud.chips = chips; UI.chips.innerHTML = chips; }
   setText(UI.flares, 'fl', String(P.flares));
   const fc = P.flares <= 0; if (lastHud.fc !== fc) { lastHud.fc = fc; UI.bFlare.classList.toggle('cool', fc); }
@@ -2910,8 +2994,51 @@ function boot(data) {
   resize();
   showTitle();
   UI.ticker.textContent = nextHeadline();
+  emit('boot');
   requestAnimationFrame(frame);
 }
+
+/* =========================================================
+   DEVELOPER SETTINGS — switch each optional feature on or off
+   ========================================================= */
+function openDev() {
+  hideScreens();
+  renderDev();
+  $('sDev').hidden = false;
+  setTimeout(() => { try { $('bDevDone').focus({ preventScroll: true }); } catch (e) { /* focus is optional */ } }, 30);
+}
+function closeDev() { $('sDev').hidden = true; showTitle(); }
+function renderDev() {
+  const box = $('devList');
+  box.textContent = '';
+  if (!FEATURES.length) {
+    const p = document.createElement('p'); p.className = 'dev-empty'; p.textContent = 'No switchable features yet.'; box.append(p);
+  }
+  for (const f of FEATURES) {
+    const row = document.createElement('label'); row.className = 'dev-row'; row.htmlFor = 'dev-' + f.id;
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'dev-' + f.id; cb.checked = feat(f.id);
+    cb.addEventListener('change', () => { setFlag(f.id, cb.checked); Snd.init(); Snd.click(); devCount(); });
+    const txt = document.createElement('span'); txt.className = 'dev-txt';
+    const nm = document.createElement('b'); nm.textContent = f.name;
+    const grp = document.createElement('i'); grp.textContent = f.group || 'FEATURE';
+    const ds = document.createElement('span'); ds.textContent = f.desc;
+    txt.append(grp, nm, ds); row.append(cb, txt); box.append(row);
+  }
+  devCount();
+}
+function devCount() {
+  const on = FEATURES.filter(f => feat(f.id)).length;
+  $('devCount').textContent = on + ' OF ' + FEATURES.length + ' ON';
+}
+function setAllFlags(on) { for (const f of FEATURES) setFlag(f.id, on); renderDev(); }
+$('bDev').addEventListener('click', () => { Snd.init(); openDev(); });
+$('bDevDone').addEventListener('click', closeDev);
+$('bDevAll').addEventListener('click', () => setAllFlags(true));
+$('bDevNone').addEventListener('click', () => setAllFlags(false));
+
+/* =========================================================
+   START — runs last, after every feature has registered its listeners
+   ========================================================= */
 try { if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(() => ({ save })); } catch (e) { /* viewer hook unavailable */ }
 (function start() {
   const hot = window.claude && window.claude.hot;

@@ -34,7 +34,7 @@ function readInput() {
   return { dx: 0, dy: 0, thr: 0 };
 }
 const playing = () => G && !G.attract && G.mode === 'play';
-const screenOpen = () => !UI.sTitle.hidden || !UI.sPause.hidden || !UI.sPort.hidden;
+const screenOpen = () => !UI.sTitle.hidden || !UI.sPause.hidden || !UI.sPort.hidden || !$('sDev').hidden;
 
 /* ---------- input wiring ---------- */
 window.addEventListener('keydown', e => {
@@ -46,6 +46,8 @@ window.addEventListener('keydown', e => {
     if (c === 'Enter' && e.target.tagName !== 'BUTTON') { if (!UI.sTitle.hidden) $('bPlay').click(); else if (!UI.sPort.hidden) $('bNext').click(); else if (!UI.sPause.hidden) resumeGame(); }
     else if ((c === 'Escape' || c === 'KeyP') && !UI.sPause.hidden) { e.preventDefault(); resumeGame(); }
     else if (c === 'KeyR' && !UI.sPause.hidden) startLevel(G.level);
+    else if (c === 'Escape' && !$('sDev').hidden) closeDev();
+    else if (c === 'Backquote' && !UI.sTitle.hidden) openDev();
     return;
   }
   Input.keys[c] = true;
@@ -117,7 +119,7 @@ function syncSoundLabels() {
 }
 
 /* ---------- screens ---------- */
-function hideScreens() { UI.sTitle.hidden = true; UI.sPause.hidden = true; UI.sPort.hidden = true; }
+function hideScreens() { UI.sTitle.hidden = true; UI.sPause.hidden = true; UI.sPort.hidden = true; $('sDev').hidden = true; }
 function showTitle() {
   hideScreens(); portShown = false;
   newGame(1, true);
@@ -133,6 +135,7 @@ function showTitle() {
   const badges = $('tBadges'); badges.textContent = '';
   for (const id of Object.keys(ACH)) { const s = document.createElement('span'); s.className = 'badge' + (save.ach[id] ? '' : ' off'); s.textContent = save.ach[id] ? ACH[id][0] : '?'; s.title = ACH[id][1]; badges.append(s); }
   keepAwake(false);
+  emit('title');
   setTimeout(() => { try { $('bPlay').focus({ preventScroll: true }); } catch (e) { /* focus is optional */ } }, 30);
 }
 function startLevel(n) {
@@ -181,6 +184,7 @@ function showPort() {
   const row = (k, v, cls) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; if (cls) { dt.className = cls; dd.className = cls; } L.append(dt, dd); };
   row('Crude sold (' + G.deliveries + (G.deliveries === 1 ? ' cargo' : ' cargoes') + ')', fmtMoney(G.earned));
   row('Close calls, shoot-downs, lucky finds', fmtMoney(G.bonus));
+  emit('portLedger', row, r);
   if (r.win) {
     row('Time bonus (' + Math.ceil(G.timeLeft) + 's left)', fmtMoney(r.timeBonus));
     if (r.perfect) row('Not-a-scratch bonus', fmtMoney(r.perfect));
@@ -193,6 +197,7 @@ function showPort() {
   nb.innerHTML = '';
   nb.append(r.win ? 'LEVEL ' + save.level + ' ▶ ' : 'RETRY LEVEL ' + G.level + ' ');
   const kb = document.createElement('kbd'); kb.textContent = 'ENTER'; nb.append(kb);
+  emit('port', r);
   UI.sPort.hidden = false; UI.sPort.scrollTop = 0;
   keepAwake(false);
   setTimeout(() => { try { nb.focus({ preventScroll: true }); } catch (e) { /* optional */ } }, 40);
@@ -269,6 +274,7 @@ function hudTick(dt) {
   if (P.loading && P.cargo < P.cap - 1e-4) chips += '<span class="chip warn">LOADING</span>';
   else if (P.cargo >= P.cap - 1e-4) chips += '<span class="chip good">FULL</span>';
   if (G.combo > 1) chips += '<span class="chip warn">COMBO ×' + G.combo + '</span>';
+  const extra = []; emit('chips', extra); chips += extra.join('');
   if (lastHud.chips !== chips) { lastHud.chips = chips; UI.chips.innerHTML = chips; }
   setText(UI.flares, 'fl', String(P.flares));
   const fc = P.flares <= 0; if (lastHud.fc !== fc) { lastHud.fc = fc; UI.bFlare.classList.toggle('cool', fc); }
@@ -338,10 +344,6 @@ function boot(data) {
   resize();
   showTitle();
   UI.ticker.textContent = nextHeadline();
+  emit('boot');
   requestAnimationFrame(frame);
 }
-try { if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(() => ({ save })); } catch (e) { /* viewer hook unavailable */ }
-(function start() {
-  const hot = window.claude && window.claude.hot;
-  if (hot && hot.ready) hot.ready(boot); else boot((hot && hot.data) || {});
-})();

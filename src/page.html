@@ -170,7 +170,21 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .badge{font-size:12px;font-weight:700;padding:2px 8px;border:1px solid var(--ink);background:#FBF6E8}
 .badge.off{opacity:.35;border-style:dashed}
-.rotate-tip{display:none}
+.title-foot{display:flex;justify-content:flex-end;margin-top:12px}
+.btn.small{min-height:34px;font-size:13px;padding:0 8px}
+.dev-card{width:min(660px,100%)}
+.dev-note{margin:0 0 14px;color:var(--ink-2);font-weight:600;max-width:60ch}
+.dev-list{display:grid;gap:8px}
+.dev-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;padding:10px 12px;border:1px solid rgba(22,38,58,.3);background:#FBF6E8;cursor:pointer}
+.dev-row:hover{background:#fff}
+.dev-row input{width:22px;height:22px;margin:3px 0 0;accent-color:var(--magenta);cursor:pointer}
+.dev-row input:focus-visible{outline:3px solid var(--magenta);outline-offset:2px}
+.dev-txt{display:grid;gap:1px;min-width:0}
+.dev-txt i{font-style:normal;font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--magenta)}
+.dev-txt b{font-size:16px;letter-spacing:.03em}
+.dev-txt span{font-size:14px;color:var(--ink-2)}
+.dev-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.dev-empty{margin:0;color:var(--ink-2)}
 
 @media (max-width:720px){
   .ups{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -277,6 +291,22 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
     </div>
     <div class="bests" id="tBests"></div>
     <div class="badges" id="tBadges"></div>
+    <div class="title-foot"><button id="bDev" class="btn ghost small" type="button">Developer settings</button></div>
+  </div>
+</section>
+
+<section id="sDev" class="screen" hidden aria-label="Developer settings">
+  <div class="card dev-card">
+    <div class="meta-row"><span>ENGINE ROOM · FEATURE SWITCHES</span><span id="devCount">0 OF 0 ON</span></div>
+    <div class="scale" aria-hidden="true"></div>
+    <h2 class="big">DEV SETTINGS</h2>
+    <p class="dev-note">Switch each feature on or off. Your choices are saved in this browser and apply from the next level you start.</p>
+    <div id="devList" class="dev-list"></div>
+    <div class="dev-actions">
+      <button id="bDevDone" class="btn primary" type="button">DONE</button>
+      <button id="bDevAll" class="btn" type="button">ALL ON</button>
+      <button id="bDevNone" class="btn" type="button">ALL OFF</button>
+    </div>
   </div>
 </section>
 
