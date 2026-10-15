@@ -1,0 +1,316 @@
+<title>Strait Outta Hormuz</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Serif:ital,wght@1,500&family=Saira+Condensed:wght@500;600;700;800&family=Saira+Stencil+One&display=swap">
+<style>
+:root{
+  /* Layout: the playfield is a full-bleed nautical chart of the Strait; dark chart-table plates sit in the corners; menus are chart-paper cards with a graduated scale bar */
+  --paper:#F4E8C8;
+  --paper-deep:#E6D29E;
+  --ink:#16263A;
+  --ink-2:#3C4E63;
+  --sea:#D3E8EF;
+  --magenta:#C0177A;
+  --hull:#C2352B;
+  --amber:#F2A31D;
+  --good:#2E9E6A;
+  --plate:rgba(18,31,47,.86);
+  --plate-line:rgba(244,232,200,.2);
+  --plate-soft:rgba(244,232,200,.1);
+  --up:#78E2AC;
+  --down:#FF8E7E;
+  --font-display:"Saira Stencil One","Impact","Haettenschweiler","Arial Narrow Bold",sans-serif;
+  --font-ui:"Saira Condensed","Roboto Condensed","Arial Narrow",sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --font-chart:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{margin:0;background:var(--sea);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.35;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;background:var(--sea);touch-action:none;cursor:crosshair}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible{outline:3px solid var(--magenta);outline-offset:2px}
+kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5px;border:1px solid currentColor;border-radius:3px;opacity:.65;line-height:16px}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;display:grid;grid-template-rows:auto 1fr auto;gap:8px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:calc(env(safe-area-inset-top,0px) + 10px) calc(env(safe-area-inset-bottom,0px) + 36px)}
+.hud-top,.hud-bottom{display:flex;justify-content:space-between;gap:10px;min-width:0}
+.hud-top{align-items:flex-start}
+.hud-bottom{align-items:flex-end}
+.hud-mid{position:relative;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start}
+.plate{background:var(--plate);color:var(--paper);border:1px solid var(--plate-line);border-radius:4px;padding:8px 10px}
+.k{font-size:11px;font-weight:700;letter-spacing:.14em;opacity:.72;white-space:nowrap}
+.plate-level{width:min(320px,58vw);display:grid;gap:6px;min-width:0}
+.lvl-row{display:flex;align-items:baseline;gap:8px;min-width:0}
+.lvl{font-family:var(--font-display);font-size:20px;line-height:1;color:var(--amber);white-space:nowrap}
+.lvl-name{font-weight:700;font-size:13px;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.time{font-family:var(--font-data);font-weight:600;font-size:18px;font-variant-numeric:tabular-nums}
+.time.low{color:var(--down);animation:blink .5s steps(2) infinite}
+.quota,.brent{display:flex;align-items:center;gap:8px;min-width:0}
+.quota-bar,.bar{flex:1;min-width:30px;height:8px;background:var(--plate-soft);border-radius:2px;overflow:hidden;position:relative}
+.quota-bar i,.bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--amber);transition:width .2s}
+.bar.hull i{background:var(--up)}
+.bar.hull.warn i{background:var(--amber)}
+.bar.hull.crit i{background:var(--down)}
+.bar.cargo i{background:var(--paper)}
+#hQuota{font-family:var(--font-data);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.price{font-family:var(--font-data);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums}
+.delta{font-family:var(--font-data);font-size:11px;font-variant-numeric:tabular-nums}
+.delta.rise{color:var(--up)}.delta.fall{color:var(--down)}
+.hot{margin-left:auto;font-weight:800;font-size:12px;letter-spacing:.06em;color:var(--ink);background:var(--amber);padding:0 6px;border-radius:2px;white-space:nowrap}
+.plate-map{padding:6px;display:grid;gap:6px;justify-items:end}
+#mini{display:block;width:180px;height:162px;border-radius:2px;background:var(--sea)}
+.mini-btns{display:flex;gap:6px;pointer-events:auto}
+.mini-btns button{min-width:38px;height:30px;padding:0 8px;border:1px solid var(--plate-line);border-radius:3px;font-weight:800;font-size:12px;letter-spacing:.08em;color:var(--paper);background:var(--plate-soft)}
+.mini-btns button[aria-pressed="true"]{color:var(--ink);background:var(--paper)}
+.plate-ship{width:min(300px,56vw);display:grid;gap:6px}
+.bar-row{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:8px}
+.n{font-family:var(--font-data);font-size:12px;font-variant-numeric:tabular-nums;min-width:62px;text-align:right}
+.ship-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px}
+.chip{font-weight:800;letter-spacing:.06em;padding:0 6px;border-radius:2px;background:var(--plate-soft);white-space:nowrap}
+.chip.warn{background:var(--amber);color:var(--ink)}
+.chip.bad{background:var(--hull);color:var(--paper)}
+.chip.good{background:var(--good);color:var(--paper)}
+#hSpeed{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:10px;pointer-events:auto}
+.act{width:86px;height:86px;border-radius:50%;background:var(--plate);border:2px solid var(--plate-line);color:var(--paper);display:grid;place-items:center;align-content:center;gap:1px;touch-action:none}
+.act svg{width:26px;height:26px}
+.act-k{font-weight:800;font-size:12px;letter-spacing:.12em}
+.act-n{font-family:var(--font-data);font-size:11px}
+.act.cool{opacity:.5}
+.act:active{transform:scale(.95)}
+.hint{flex:0 1 520px;min-width:0;align-self:flex-start;margin:0 auto;text-align:center;background:var(--paper);color:var(--ink);border:2px solid var(--ink);padding:6px 12px;font-weight:700;font-size:15px;letter-spacing:.02em;box-shadow:0 3px 0 var(--ink)}
+.hint b{color:var(--magenta)}
+.radio{align-self:flex-start;max-width:min(380px,100%);background:var(--plate);color:var(--paper);border-left:4px solid var(--magenta);padding:6px 10px;font-size:14px;display:flex;gap:8px;align-items:baseline;margin-bottom:4px}
+.radio .ch{font-family:var(--font-data);font-size:10px;color:var(--amber);white-space:nowrap}
+@keyframes blink{50%{opacity:.35}}
+
+/* ---------- ticker ---------- */
+.ticker{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--paper);pointer-events:none;
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+.ticker-inner{display:flex;align-items:center;gap:10px;height:28px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.tk-label{font-weight:800;font-size:12px;letter-spacing:.14em;background:var(--hull);color:var(--paper);padding:0 8px;line-height:20px;white-space:nowrap}
+.tk-track{flex:1;min-width:0;overflow:hidden;white-space:nowrap}
+#tickerText{display:inline-block;padding-left:100%;font-weight:600;font-size:14px;letter-spacing:.02em;animation:tick 34s linear infinite}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);z-index:30;background:var(--paper);color:var(--ink);border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink);padding:8px 14px;display:grid;gap:2px;text-align:center;pointer-events:none;width:max-content;max-width:calc(100% - 32px);animation:toastIn .35s ease-out}
+.toast .t-k{font-size:11px;font-weight:800;letter-spacing:.16em;color:var(--magenta)}
+.toast .t-n{font-family:var(--font-display);font-size:20px;line-height:1.1}
+.toast .t-d{font-size:13px;color:var(--ink-2)}
+@keyframes toastIn{from{transform:translate(-50%,-30px);opacity:0}}
+
+/* ---------- screens ---------- */
+.screen{position:fixed;inset:0;z-index:20;overflow-y:auto;display:flex;justify-content:center;touch-action:pan-y;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:calc(env(safe-area-inset-top,0px) + 24px) calc(env(safe-area-inset-bottom,0px) + 44px);
+  background:linear-gradient(180deg,rgba(211,232,239,.2),rgba(22,38,58,.45))}
+.card{margin:auto 0;width:min(760px,100%);height:max-content;background:var(--paper);color:var(--ink);position:relative;
+  padding:22px clamp(16px,4vw,36px) 26px;border:2px solid var(--ink);
+  box-shadow:0 0 0 5px var(--paper),0 0 0 7px var(--ink),0 22px 50px rgba(22,38,58,.4)}
+.meta-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:var(--font-data);font-size:11px;letter-spacing:.06em;color:var(--ink-2)}
+.scale{height:7px;margin:6px 0 14px;border:1px solid var(--ink);background:repeating-linear-gradient(90deg,var(--ink) 0 24px,transparent 24px 48px)}
+.logo{font-family:var(--font-display);font-weight:400;font-size:clamp(44px,10.5vw,104px);line-height:.86;margin:4px 0 12px;letter-spacing:.01em;text-wrap:balance;display:flex;flex-wrap:wrap;column-gap:.22em}
+.logo span{display:inline-block}
+.logo .hl{color:var(--hull);text-shadow:4px 4px 0 var(--ink)}
+.tagline{font-size:clamp(16px,2.3vw,19px);font-weight:600;max-width:60ch;margin:0 0 18px;color:var(--ink-2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);font-weight:800;font-size:17px;letter-spacing:.1em;box-shadow:0 4px 0 var(--ink);transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.primary{background:var(--hull);color:var(--paper);font-size:20px;min-height:56px;padding:0 28px}
+.btn.ghost{box-shadow:none;border-color:transparent;text-decoration:underline;text-underline-offset:4px;letter-spacing:.06em;font-size:15px}
+.btn.danger{background:var(--ink);color:var(--paper)}
+.btn kbd{opacity:.8}
+.title-actions,.port-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.howto{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid rgba(22,38,58,.25)}
+.ht{display:grid;gap:2px;font-size:14px;color:var(--ink-2)}
+.ht b{font-size:12px;letter-spacing:.14em;color:var(--magenta)}
+.bests{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;font-family:var(--font-data);font-size:12px;color:var(--ink-2)}
+.bests b{color:var(--ink);font-weight:600}
+.big{font-family:var(--font-display);font-weight:400;font-size:clamp(40px,8vw,72px);line-height:.9;margin:0 0 16px}
+.stack{display:grid;gap:12px;max-width:360px}
+.small-card{width:min(440px,100%)}
+.port-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.eyebrow{font-weight:800;font-size:12px;letter-spacing:.16em;color:var(--magenta)}
+.port-title{font-family:var(--font-display);font-weight:400;font-size:clamp(40px,8vw,70px);line-height:.9;margin:2px 0 0}
+.port-title.bad{color:var(--hull)}
+.stars{display:flex;gap:4px}
+.stars svg{width:36px;height:36px}
+.clipping{margin:14px 0 12px;background:#FBF6E8;border:1px solid rgba(22,38,58,.35);padding:10px 14px;transform:rotate(-.6deg);box-shadow:2px 3px 0 rgba(22,38,58,.18)}
+.clip-src{font-family:var(--font-chart);font-style:italic;font-size:12px;color:var(--ink-2)}
+.clipping p{margin:2px 0 0;font-family:var(--font-display);font-size:clamp(17px,2.6vw,22px);line-height:1.08;text-wrap:balance}
+.ledger{display:grid;grid-template-columns:1fr auto;gap:4px 16px;margin:0;font-size:15px}
+.ledger dt{color:var(--ink-2)}
+.ledger dd{margin:0;font-family:var(--font-data);font-variant-numeric:tabular-nums;text-align:right}
+.ledger .tot{font-weight:800;color:var(--ink);border-top:1px solid rgba(22,38,58,.3);padding-top:4px}
+.cash-row{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 4px;padding:8px 12px;background:var(--ink);color:var(--paper)}
+.cash-row span{font-weight:800;letter-spacing:.14em;font-size:13px}
+.cash-row b{font-family:var(--font-data);font-size:22px;font-variant-numeric:tabular-nums}
+.sec{font-weight:800;font-size:13px;letter-spacing:.16em;margin:16px 0 8px;color:var(--ink-2)}
+.ups{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.up{display:grid;gap:4px;text-align:left;padding:9px 10px;border:2px solid var(--ink);background:#FBF6E8;min-height:104px;align-content:start}
+.up:not(:disabled):hover{background:#fff}
+.up:disabled{cursor:default}
+.up.cant{opacity:.55}
+.up.maxed{background:var(--paper-deep)}
+.up-name{font-weight:800;font-size:14px;letter-spacing:.08em}
+.up-pips{display:flex;gap:3px}
+.up-pips i{width:14px;height:6px;border:1px solid var(--ink)}
+.up-pips i.on{background:var(--magenta);border-color:var(--magenta)}
+.up-eff{font-size:12px;color:var(--ink-2);line-height:1.2}
+.up-cost{font-family:var(--font-data);font-weight:600;font-size:13px;margin-top:auto}
+.up.buyable .up-cost{color:var(--good)}
+.port-actions{position:sticky;bottom:0;z-index:2;flex-wrap:nowrap;margin:18px calc(-1 * clamp(16px,4vw,36px)) -26px;padding:12px clamp(16px,4vw,36px) calc(14px + env(safe-area-inset-bottom,0px));background:var(--paper);border-top:1px solid rgba(22,38,58,.25)}
+.port-actions .btn.ghost{padding:0 8px;white-space:nowrap}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.badge{font-size:12px;font-weight:700;padding:2px 8px;border:1px solid var(--ink);background:#FBF6E8}
+.badge.off{opacity:.35;border-style:dashed}
+.rotate-tip{display:none}
+
+@media (max-width:720px){
+  .ups{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .up{min-height:0}
+  .howto{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .hud-top{flex-wrap:wrap}
+  .hud-top .hint{order:3;flex-basis:100%}
+}
+@media (max-width:640px),(max-height:520px){
+  #mini{width:124px;height:112px}
+  .act{width:72px;height:72px}
+  .act svg{width:22px;height:22px}
+  .plate{padding:6px 8px}
+  .lvl{font-size:17px}
+  .time{font-size:16px}
+  .act kbd{display:none}
+}
+@media (max-height:520px){
+  .ticker-inner{height:22px}
+  #hud{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 28px);padding-top:calc(env(safe-area-inset-top,0px) + 6px)}
+  .radio{font-size:12px;max-width:300px}
+  .hint{font-size:13px;padding:4px 10px}
+  .plate-level{width:min(250px,40vw);gap:3px}
+  .lvl-name{font-size:12px}
+  .time{font-size:15px}
+  .k{font-size:9px}
+  #hQuota{font-size:11px}
+  .price{font-size:13px}
+  .plate-ship{width:min(220px,36vw);gap:3px}
+  .bar-row{grid-template-columns:38px 1fr auto;gap:6px}
+  .n{font-size:11px;min-width:50px}
+  .ship-meta{font-size:11px}
+  #mini{width:104px;height:94px}
+  .mini-btns button{height:24px;min-width:32px;font-size:11px}
+  .act{width:60px;height:60px}
+  .act svg{width:18px;height:18px}
+  .act-k{font-size:10px}
+}
+@media (hover:none){ .act kbd,.btn kbd{display:none} }
+@media (prefers-reduced-motion:reduce){
+  #tickerText{animation:none;padding-left:0}
+  .time.low{animation:none}
+  .toast{animation:none}
+}
+</style>
+
+<canvas id="game" aria-label="Game view of the Strait of Hormuz"></canvas>
+
+<div id="hud" hidden>
+  <div class="hud-top">
+    <div class="plate plate-level">
+      <div class="lvl-row"><span id="hLvl" class="lvl">LVL 1</span><span id="hName" class="lvl-name">TRAINING DAY</span><span id="hTime" class="time">1:30</span></div>
+      <div class="quota"><span class="k">QUOTA</span><div class="quota-bar"><i id="hQuotaFill"></i></div><span id="hQuota">$0M / $60M</span></div>
+      <div class="brent"><span class="k">BRENT $/BBL</span><span id="hPrice" class="price">82.00</span><span id="hPriceD" class="delta">+0.00</span><span id="hHot" class="hot" hidden></span></div>
+    </div>
+    <div id="hint" class="hint" hidden></div>
+    <div class="plate plate-map">
+      <canvas id="mini" width="180" height="162" aria-label="Minimap"></canvas>
+      <div class="mini-btns"><button id="bPause" type="button" aria-label="Pause">II</button><button id="bMute" type="button" aria-pressed="false" aria-label="Mute sound">SND</button></div>
+    </div>
+  </div>
+  <div class="hud-mid">
+    <div id="radio" class="radio" hidden><span class="ch">VHF 16</span><span id="radioText"></span></div>
+  </div>
+  <div class="hud-bottom">
+    <div class="plate plate-ship">
+      <div class="bar-row"><span class="k">HULL</span><div id="hHullBar" class="bar hull"><i id="hHull"></i></div><span id="hHullN" class="n">100</span></div>
+      <div class="bar-row"><span class="k">CARGO</span><div class="bar cargo"><i id="hCargo"></i></div><span id="hCargoN" class="n">0k bbl</span></div>
+      <div class="ship-meta"><span id="hSpeed">0.0 kn</span><span id="hChips"></span></div>
+    </div>
+    <div class="actions">
+      <button id="bFlare" class="act" type="button" aria-label="Fire flares">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v5M12 16v5M3 12h5M16 12h5M5.6 5.6l3.5 3.5M14.9 14.9l3.5 3.5M5.6 18.4l3.5-3.5M14.9 9.1l3.5-3.5"/></g></svg>
+        <span class="act-k">FLARE <span id="hFlares" class="act-n">2</span></span><kbd>SPACE</kbd>
+      </button>
+      <button id="bHonk" class="act" type="button" aria-label="Sound the horn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 10h4l8-5v14l-8-5H3z"/><path d="M18 8.5c1.2 1 1.2 6 0 7M20.5 6c2.2 2 2.2 10 0 12"/></g></svg>
+        <span class="act-k">HONK</span><kbd>H</kbd>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="ticker" aria-hidden="true"><div class="ticker-inner"><span class="tk-label">BREAKING</span><div class="tk-track"><span id="tickerText">Oil traders refresh their screens 4,000 times per second.</span></div></div></div>
+
+<div id="toast" class="toast" hidden></div>
+
+<section id="sTitle" class="screen" aria-label="Title">
+  <div class="card title-card">
+    <div class="meta-row"><span>CHART 26°34′N · 056°15′E</span><span>SOUNDINGS IN METRES</span></div>
+    <div class="scale" aria-hidden="true"></div>
+    <h1 class="logo"><span>STRAIT</span><span>OUTTA</span><span class="hl">HORMUZ</span></h1>
+    <p class="tagline">Load crude inside the Gulf, run it out through the Strait and sell it to the world before something falls on you.</p>
+    <div class="title-actions">
+      <button id="bPlay" class="btn primary" type="button">SET SAIL</button>
+      <button id="bReset" class="btn ghost" type="button" hidden>New career</button>
+    </div>
+    <div class="howto">
+      <div class="ht"><b>STEER</b><span>WASD or arrows, or hold the mouse button. On a phone, drag anywhere.</span></div>
+      <div class="ht"><b>FLARE</b><span>Space or right-click. Missiles and drones chase the flares instead.</span></div>
+      <div class="ht"><b>HONK</b><span>H. Boarding parties hate it. So does everyone else.</span></div>
+    </div>
+    <div class="bests" id="tBests"></div>
+    <div class="badges" id="tBadges"></div>
+  </div>
+</section>
+
+<section id="sPause" class="screen" hidden aria-label="Paused">
+  <div class="card small-card">
+    <div class="meta-row"><span>ALL STOP</span><span id="pzLevel">LEVEL 1</span></div>
+    <div class="scale" aria-hidden="true"></div>
+    <h2 class="big">PAUSED</h2>
+    <div class="stack">
+      <button id="bResume" class="btn primary" type="button">RESUME</button>
+      <button id="bRestart" class="btn" type="button">RESTART LEVEL</button>
+      <button id="bSound" class="btn" type="button">SOUND: ON</button>
+      <button id="bMusic" class="btn" type="button">MUSIC: ON</button>
+      <button id="bQuit" class="btn ghost" type="button">Quit to title</button>
+    </div>
+  </div>
+</section>
+
+<section id="sPort" class="screen" hidden aria-label="Port">
+  <div class="card">
+    <div class="meta-row"><span id="pMeta">PORT OF FUJAIRAH · DRY DOCK 3</span><span id="pPremium">WAR RISK PREMIUM +0%</span></div>
+    <div class="scale" aria-hidden="true"></div>
+    <div class="port-head">
+      <div><div id="pEyebrow" class="eyebrow">LEVEL 1 · TRAINING DAY</div><h2 id="pTitle" class="port-title">QUOTA MET</h2></div>
+      <div id="pStars" class="stars" aria-label="Stars"></div>
+    </div>
+    <div class="clipping"><span class="clip-src">The Daily Barrel · late edition</span><p id="pHeadline">Analysts stunned as tanker does its job</p></div>
+    <dl id="pLedger" class="ledger"></dl>
+    <div class="cash-row"><span>CASH IN THE BANK</span><b id="pCash">$0M</b></div>
+    <h3 class="sec">DRY DOCK · UPGRADES</h3>
+    <div id="pUps" class="ups"></div>
+    <div class="port-actions">
+      <button id="bNext" class="btn primary" type="button">NEXT LEVEL <kbd>ENTER</kbd></button>
+      <button id="bMenu" class="btn ghost" type="button">Title screen</button>
+    </div>
+  </div>
+</section>
