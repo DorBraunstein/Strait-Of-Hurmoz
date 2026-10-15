@@ -226,6 +226,40 @@ check('perks: pick after a win, applies to the next level until beaten', async p
   assert(await page.evaluate(() => save.perk === null), 'winning the level should use up the perk');
 });
 
+check('social: ghost of the best run, local leaderboard, shared board via db', async page => {
+  await page.click('#bPlay'); await sleep(1500);
+  await page.evaluate(() => { G.P.cargo = G.P.cap; G.P.x = GATES[0].x - 60; G.P.y = GATES[0].y; });
+  await sleep(2700);
+  assert(await page.evaluate(() => !!GHOSTS.L1 && GHOSTS.L1.pts.length >= 20), 'winning a level should save its ghost');
+  await page.evaluate(() => startLevel(1)); await sleep(700);
+  assert(await page.evaluate(() => !!SO.ghost && /AHEAD|BEHIND/.test(document.getElementById('hChips').textContent)), 'replaying the level should race the ghost with an AHEAD/BEHIND chip');
+  await page.evaluate(() => showTitle()); await sleep(100);
+  await page.click('#bBoard'); await page.click('#tabCareer');
+  const local = await page.evaluate(() => ({ rows: document.querySelectorAll('#boardList li.me').length, status: document.getElementById('boardStatus').textContent }));
+  assert(local.rows === 1 && local.status === 'THIS BROWSER ONLY', 'without the platform the board should show local scores');
+  await page.fill('#callsignInput', 'Captain Test'); await page.press('#callsignInput', 'Tab');
+  assert(await page.evaluate(() => save.callsign === 'Captain Test'), 'callsign should save');
+  // stand-in for the claude.ai db + user capabilities (same call shapes as the platform API)
+  const shared = await page.evaluate(async () => {
+    const docs = new Map(), subs = [];
+    const q = (filters, ord, lim) => ({
+      where: (f, op, v) => q(filters.concat([[f, v]]), ord, lim), orderBy: (f, dir) => q(filters, [f, dir], lim), limit: n => q(filters, ord, n),
+      onSnapshot(next) { const run = () => { let r = [...docs.entries()].filter(([, d]) => filters.every(([f, v]) => d[f] === v)); if (ord) r.sort((a, b) => (b[1][ord[0]] || 0) - (a[1][ord[0]] || 0)); r = r.slice(0, lim || 1e9); next({ docs: r.map(([id, d]) => ({ id, data: () => d })) }); }; subs.push(run); run(); return () => {}; }
+    });
+    const db = { collection: () => q([], null, 0), doc: path => ({ set: async body => { docs.set(path.split('/')[1], body); subs.forEach(f => f()); } }) };
+    docs.set('u_rival', { callsign: 'Rival', earned: 9999, bestLevel: 12, dailyKey: dailyKey(), dailyScore: 1 });
+    const user = { id: async () => 'u_me', can: async () => true };
+    window.claude = { use: async n => n === 'db' ? db : n === 'user' ? user : null };
+    await socialInit();
+    await new Promise(r => setTimeout(r, 100));
+    openBoard('career');
+    return { status: document.getElementById('boardStatus').textContent, rows: [...document.querySelectorAll('#boardList li')].map(li => li.textContent), mine: docs.get('u_me') };
+  });
+  assert(shared.status === 'SHARED SCORES', 'with the db the board should be shared (' + shared.status + ')');
+  assert(shared.mine && shared.mine.callsign === 'Captain Test', 'own score should be written to scores/<user id>');
+  assert(shared.rows.length === 2 && shared.rows[0].includes('Rival') && shared.rows[1].includes('(you)'), 'board should list every captain, highest first: ' + JSON.stringify(shared.rows));
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });

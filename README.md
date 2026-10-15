@@ -35,6 +35,7 @@ the browser (`localStorage`) and apply from the next level you start.
 | Missions | `missions` | Three seeded optional goals per level (honk, deliver to a country, combos, no flares, hull above 70%, ...) with cash rewards, a HUD tracker and results summary |
 | Captain Legend meter | `legend` | Stylish play fills a meter; when full, 10 seconds of double pay, a heavy-metal riff, a golden aura and flame wake |
 | Perk picks | `perks` | After each win, pick 1 of 3 silly perks for the next level (Shockwave Horn, Greasy Hull, Glass Cannon, Hot Streak, Crate Magnet, ...); kept until that level is beaten |
+| Leaderboard and ghost ships | `social` | Race a translucent ghost of your best run on each level (AHEAD/BEHIND chip); shared leaderboard for today's Daily Strait and career earnings, with a callsign |
 | Captain portrait | `captain` | Cartoon captain in the HUD: sweats near mines, screams at missiles, chews pizza, salutes buyers, sulks when boarded |
 
 Optional features live in their own files. They register with `feature({ id, name, group, desc })`, check
@@ -45,6 +46,22 @@ Events: `levelStart`, `update`, `levelEnd`, `port`, `portLedger`, `title`, `boot
 `full`, `hot`, `nearMiss`, `hurt`, `explode`, `ff`, `chain`, `ciwsKill`, `boarded`, `shaken`, `pizza`,
 `crate`, `flare`, `honk`, `aground`, `badge`, `chips`, `flags`, and the draw layers `drawSea`, `drawAir`,
 `drawScreen`.
+
+## Shared leaderboard
+On claude.ai the game is published with the artifact `db` and `user` capabilities. Each player writes one
+document, `scores/<their user id>` (callsign, career earnings, best level, today's Daily Strait score), and
+everyone reads the `scores` collection:
+
+```js
+capabilities: {
+  db: { rules: [ { path: 'scores', read: 'view', write: 'owner' }, { path: 'scores/{self}', write: 'interact' } ] },
+  user: {}
+}
+```
+
+People who can only view the artifact see the board but cannot post. Opened anywhere else (for example
+`dist/index.html` from disk) the leaderboard shows the player's own scores from this browser. Ghost runs
+are always stored locally.
 
 ## Project layout
 | File | What it holds |
@@ -67,6 +84,7 @@ Events: `levelStart`, `update`, `levelEnd`, `port`, `portLedger`, `title`, `boot
 | `src/js/14-missions.js` | Feature: missions |
 | `src/js/15-legend.js` | Feature: Captain Legend meter |
 | `src/js/16-perks.js` | Feature: perk picks |
+| `src/js/17-social.js` | Feature: ghost runs and shared leaderboard |
 | `src/js/99-start.js` | Starts the game after every feature has registered |
 
 The JS files share one global scope and are concatenated in order by `build.sh`.

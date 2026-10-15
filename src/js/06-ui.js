@@ -34,11 +34,12 @@ function readInput() {
   return { dx: 0, dy: 0, thr: 0 };
 }
 const playing = () => G && !G.attract && G.mode === 'play';
-const screenOpen = () => !UI.sTitle.hidden || !UI.sPause.hidden || !UI.sPort.hidden || !$('sDev').hidden;
+const screenOpen = () => [...document.querySelectorAll('.screen')].some(s => !s.hidden);
 
 /* ---------- input wiring ---------- */
 window.addEventListener('keydown', e => {
   const c = e.code;
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return; // typing, not playing
   Snd.init();
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(c) && e.target.tagName !== 'BUTTON') e.preventDefault();
   if (c === 'KeyM') { toggleSound(); return; }
@@ -47,6 +48,7 @@ window.addEventListener('keydown', e => {
     else if ((c === 'Escape' || c === 'KeyP') && !UI.sPause.hidden) { e.preventDefault(); resumeGame(); }
     else if (c === 'KeyR' && !UI.sPause.hidden) restartRun();
     else if (c === 'Escape' && !$('sDev').hidden) closeDev();
+    else if (c === 'Escape' && !$('sBoard').hidden) closeBoard();
     else if (c === 'Backquote' && !UI.sTitle.hidden) openDev();
     return;
   }
@@ -119,7 +121,7 @@ function syncSoundLabels() {
 }
 
 /* ---------- screens ---------- */
-function hideScreens() { UI.sTitle.hidden = true; UI.sPause.hidden = true; UI.sPort.hidden = true; $('sDev').hidden = true; }
+function hideScreens() { for (const s of document.querySelectorAll('.screen')) s.hidden = true; }
 function showTitle() {
   hideScreens(); portShown = false;
   newGame(1, true);

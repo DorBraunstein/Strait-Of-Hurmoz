@@ -206,6 +206,22 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .perk.sel{background:var(--magenta);border-color:var(--magenta);color:var(--paper)}
 .perk.sel span{color:var(--paper)}
 .daily-btn{background:var(--ink);color:var(--paper)}
+.board-card{width:min(620px,100%)}
+.tabs{display:flex;gap:0;margin:0 0 10px;border-bottom:2px solid var(--ink)}
+.tabs button{padding:8px 14px;font-weight:800;font-size:14px;letter-spacing:.1em;color:var(--ink-2);border:2px solid transparent;border-bottom:0;margin-bottom:-2px}
+.tabs button[aria-selected="true"]{color:var(--ink);background:#FBF6E8;border-color:var(--ink)}
+.board-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.board-list li{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:7px 10px;background:#FBF6E8;border:1px solid rgba(22,38,58,.2)}
+.board-list li.me{border:2px solid var(--magenta)}
+.board-list li.empty{display:block;color:var(--ink-2)}
+.board-list b{font-family:var(--font-data);font-size:13px;color:var(--ink-2)}
+.board-list span{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board-list i{font-style:normal;font-family:var(--font-data);font-size:13px;font-variant-numeric:tabular-nums}
+.board-note{margin:10px 0 14px;font-size:13px;color:var(--ink-2)}
+.callsign{display:grid;gap:4px;max-width:320px}
+.callsign span{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--magenta)}
+.callsign input{font:inherit;font-size:16px;font-weight:700;padding:8px 10px;border:2px solid var(--ink);background:#FBF6E8;color:var(--ink);-webkit-user-select:text;user-select:text}
+.callsign input:focus-visible{outline:3px solid var(--magenta);outline-offset:2px}
 .daily-line{margin:10px 0 0;font-size:14px;color:var(--ink-2);font-weight:600}
 .daily-line b{color:var(--ink)}
 .daily-line .streak{color:var(--hull);font-weight:800}
@@ -347,6 +363,7 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
     <div class="title-actions">
       <button id="bPlay" class="btn primary" type="button">SET SAIL</button>
       <button id="bDaily" class="btn daily-btn" type="button" hidden>DAILY STRAIT</button>
+      <button id="bBoard" class="btn" type="button" hidden>LEADERBOARD</button>
       <button id="bReset" class="btn ghost" type="button" hidden>New career</button>
     </div>
     <p id="tDaily" class="daily-line" hidden></p>
@@ -362,6 +379,22 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
     <div class="bests" id="tBests"></div>
     <div class="badges" id="tBadges"></div>
     <div class="title-foot"><button id="bDev" class="btn ghost small" type="button">Developer settings</button></div>
+  </div>
+</section>
+
+<section id="sBoard" class="screen" hidden aria-label="Leaderboard">
+  <div class="card board-card">
+    <div class="meta-row"><span>HARBOUR MASTER'S LOG</span><span id="boardStatus">THIS BROWSER ONLY</span></div>
+    <div class="scale" aria-hidden="true"></div>
+    <h2 class="big">LEADERBOARD</h2>
+    <div class="tabs" role="tablist" aria-label="Leaderboards">
+      <button id="tabDaily" type="button" role="tab" aria-selected="true">TODAY'S DAILY</button>
+      <button id="tabCareer" type="button" role="tab" aria-selected="false">RICHEST CAPTAINS</button>
+    </div>
+    <ol id="boardList" class="board-list"></ol>
+    <p id="boardNote" class="board-note"></p>
+    <label class="callsign" for="callsignInput"><span>YOUR CALLSIGN</span><input id="callsignInput" type="text" maxlength="24" autocomplete="off" spellcheck="false"></label>
+    <div class="dev-actions"><button id="bBoardDone" class="btn primary" type="button">DONE</button></div>
   </div>
 </section>
 
