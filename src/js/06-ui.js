@@ -185,7 +185,7 @@ function showPort() {
   const L = $('pLedger'); L.textContent = '';
   const row = (k, v, cls) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; if (cls) { dt.className = cls; dd.className = cls; } L.append(dt, dd); };
   row('Crude sold (' + G.deliveries + (G.deliveries === 1 ? ' cargo' : ' cargoes') + ')', fmtMoney(G.earned));
-  row('Close calls, shoot-downs, lucky finds', fmtMoney(G.bonus));
+  row('Bonuses (close calls, missions, finds)', fmtMoney(G.bonus));
   emit('portLedger', row, r);
   if (r.win) {
     row('Time bonus (' + Math.ceil(G.timeLeft) + 's left)', fmtMoney(r.timeBonus));

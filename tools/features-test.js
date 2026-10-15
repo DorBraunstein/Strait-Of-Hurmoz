@@ -163,6 +163,28 @@ check('daily: seeded course, rental tanker, score attack, best and streak', asyn
   assert(await page.evaluate(() => save.level === 1), 'the daily must not advance the career level');
 });
 
+check('missions: three per level, progress, rewards, remembered', async page => {
+  await page.click('#bPlay'); await sleep(300);
+  const m = await page.evaluate(() => ({ n: MS.list.length, ids: MS.list.map(x => x.def.id), hud: document.querySelectorAll('#hMissions .ms').length }));
+  assert(m.n === 3 && m.hud === 3, 'level 1 should have 3 missions in the HUD');
+  assert(m.ids.includes('honk'), 'level 1 should include the honk mission');
+  const r = await page.evaluate(async () => {
+    G.cfg.quota = 1e9; const b0 = G.bonus;
+    for (let i = 0; i < 3; i++) { G.P.honkCD = 0; honk(); }
+    await new Promise(r => setTimeout(r, 150));
+    const honkM = MS.list.find(x => x.def.id === 'honk');
+    return { done: honkM.done, bonus: G.bonus - b0, text: document.getElementById('hMissions').textContent };
+  });
+  assert(r.done && r.bonus >= 8, 'honking 3 times should complete the mission and pay (bonus ' + r.bonus + ')');
+  await page.evaluate(() => { G.cfg.quota = 0.001; G.P.cargo = 0.5; G.P.x = MS.list.find(x => x.def.id === 'gate').gate.x - 40; G.P.y = MS.list.find(x => x.def.id === 'gate').gate.y; });
+  await sleep(2600);
+  const p = await page.evaluate(() => ({ port: !document.getElementById('pMissions').hidden, rows: document.querySelectorAll('#pMissions .pm').length, saved: JSON.stringify(save.ms[1]) }));
+  assert(p.port && p.rows === 3, 'the result screen should list the 3 missions');
+  assert(p.saved.startsWith('[') && p.saved.split('true').length >= 3, 'completed missions should be remembered (' + p.saved + ')');
+  await page.evaluate(() => startDaily()); await sleep(200);
+  assert(await page.evaluate(() => document.getElementById('hMissions').hidden), 'missions should not run in the Daily Strait');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });

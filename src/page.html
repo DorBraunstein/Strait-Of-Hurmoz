@@ -177,6 +177,23 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .replay{display:grid;gap:6px;margin:0 0 14px}
 .replay canvas{display:block;width:100%;max-width:100%;aspect-ratio:16/7;border:2px solid var(--ink);background:var(--sea)}
 .replay-line{margin:0;font-family:var(--font-display);font-size:clamp(15px,2.4vw,19px);line-height:1.15;color:var(--hull);text-wrap:balance}
+.hud-col{display:grid;gap:6px;align-content:start;flex:0 0 auto}
+.plate-missions{display:grid;gap:3px;padding:6px 10px;width:min(320px,58vw)}
+.ms-sum{display:none;font-size:11px;font-weight:800;letter-spacing:.12em}
+.ms{display:flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600;min-width:0}
+.ms span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms i{flex:none;width:11px;height:11px;border:1.5px solid var(--paper);border-radius:2px;opacity:.8}
+.ms b{margin-left:auto;font-family:var(--font-data);font-size:11px;font-weight:500}
+.ms.done{color:var(--up)}
+.ms.done i{background:var(--up);border-color:var(--up);opacity:1}
+.ms.fail{opacity:.45;text-decoration:line-through}
+.port-missions{display:grid;gap:4px;margin-top:6px}
+.port-missions .sec{margin:10px 0 4px}
+.pm{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:baseline;font-size:15px}
+.pm b{color:var(--hull)}
+.pm.done b,.pm.before b{color:var(--good)}
+.pm i{font-style:normal;font-family:var(--font-data);font-size:12px;color:var(--ink-2)}
+.pm.done i{color:var(--good);font-weight:600}
 .daily-btn{background:var(--ink);color:var(--paper)}
 .daily-line{margin:10px 0 0;font-size:14px;color:var(--ink-2);font-weight:600}
 .daily-line b{color:var(--ink)}
@@ -230,6 +247,9 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
   .ticker-inner{height:22px}
   #hud{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 28px);padding-top:calc(env(safe-area-inset-top,0px) + 6px)}
   .radio{font-size:12px;max-width:300px}
+  .plate-missions{width:auto;padding:4px 8px}
+  .plate-missions .ms{display:none}
+  .plate-missions .ms-sum{display:block}
   .hint{font-size:13px;padding:4px 10px}
   .plate-level{width:min(250px,40vw);gap:3px}
   .lvl-name{font-size:12px}
@@ -262,10 +282,13 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 
 <div id="hud" hidden>
   <div class="hud-top">
+    <div class="hud-col">
     <div class="plate plate-level">
       <div class="lvl-row"><span id="hLvl" class="lvl">LVL 1</span><span id="hName" class="lvl-name">TRAINING DAY</span><span id="hTime" class="time">1:30</span></div>
       <div class="quota"><span id="hQuotaK" class="k">QUOTA</span><div class="quota-bar"><i id="hQuotaFill"></i></div><span id="hQuota">$0M / $60M</span></div>
       <div class="brent"><span class="k">BRENT $/BBL</span><span id="hPrice" class="price">82.00</span><span id="hPriceD" class="delta">+0.00</span><span id="hHot" class="hot" hidden></span></div>
+    </div>
+    <div id="hMissions" class="plate plate-missions" hidden></div>
     </div>
     <div id="hint" class="hint" hidden></div>
     <div class="plate plate-map">
@@ -373,6 +396,7 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
       <p id="replayLine" class="replay-line"></p>
     </div>
     <dl id="pLedger" class="ledger"></dl>
+    <div id="pMissions" class="port-missions" hidden></div>
     <div class="cash-row"><span>CASH IN THE BANK</span><b id="pCash">$0M</b></div>
     <h3 class="sec">DRY DOCK · UPGRADES</h3>
     <div id="pUps" class="ups"></div>

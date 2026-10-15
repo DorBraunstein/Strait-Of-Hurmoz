@@ -32,6 +32,7 @@ the browser (`localStorage`) and apply from the next level you start.
 | Absurd enemies | `absurd` | Seagull swarms that block the view and splat the deck (honk to scatter), the USS Very Lost going the wrong way with flyby jets, inflatable decoy tankers that missiles and drones chase |
 | Close-call replay | `replay` | The best near miss of a level replays in slow motion on the results screen with a sports-commentator line |
 | Daily Strait | `daily` | One 90-second score attack per day with a daily twist (night, fog, mine buffet, drone wedding, ...), the same course for everyone, a rental tanker, best score, day streak and a career cash reward |
+| Missions | `missions` | Three seeded optional goals per level (honk, deliver to a country, combos, no flares, hull above 70%, ...) with cash rewards, a HUD tracker and results summary |
 | Captain portrait | `captain` | Cartoon captain in the HUD: sweats near mines, screams at missiles, chews pizza, salutes buyers, sulks when boarded |
 
 Optional features live in their own files. They register with `feature({ id, name, group, desc })`, check
@@ -61,6 +62,7 @@ Events: `levelStart`, `update`, `levelEnd`, `port`, `portLedger`, `title`, `boot
 | `src/js/11-absurd.js` | Feature: absurd enemies |
 | `src/js/12-replay.js` | Feature: close-call replay |
 | `src/js/13-daily.js` | Feature: Daily Strait |
+| `src/js/14-missions.js` | Feature: missions |
 | `src/js/99-start.js` | Starts the game after every feature has registered |
 
 The JS files share one global scope and are concatenated in order by `build.sh`.
