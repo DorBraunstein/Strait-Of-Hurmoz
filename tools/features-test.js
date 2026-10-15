@@ -48,6 +48,20 @@ check('all features on: hazard-heavy level runs without errors', async page => {
   assert(await page.evaluate(() => G.mode === 'play'), 'level should still be running');
 });
 
+check('captain: portrait shows in the HUD and reacts to events', async page => {
+  await page.click('#bPlay'); await sleep(300);
+  assert(await page.evaluate(() => !document.getElementById('captain').hidden), 'portrait should be visible during a level');
+  await page.evaluate(() => { G.mines = []; G.missiles = []; emit('pizza'); });
+  await sleep(150);
+  assert(await page.evaluate(() => CAP.mood === 'chew'), 'pizza should make the captain chew');
+  await page.evaluate(() => { spawnBallistic(G.P.x, G.P.y, 0, 130); });
+  await sleep(1200);
+  assert(await page.evaluate(() => CAP.mood === 'scream'), 'incoming ballistic should make the captain scream');
+  await page.evaluate(() => { setFlag('captain', false); startLevel(1); });
+  await sleep(200);
+  assert(await page.evaluate(() => document.getElementById('captain').hidden), 'portrait should hide when the feature is off');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });

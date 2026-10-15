@@ -27,6 +27,7 @@ the browser (`localStorage`) and apply from the next level you start.
 
 | Feature | Switch id | What it adds |
 | --- | --- | --- |
+| Captain portrait | `captain` | Cartoon captain in the HUD: sweats near mines, screams at missiles, chews pizza, salutes buyers, sulks when boarded |
 
 Optional features live in their own files. They register with `feature({ id, name, group, desc })`, check
 `feat(id)` before doing anything, and react to game events through `onEvt(name, fn)`. The core game only
@@ -49,6 +50,7 @@ Events: `levelStart`, `update`, `levelEnd`, `port`, `portLedger`, `title`, `boot
 | `src/js/05-render.js` | Chart rendering, ships, effects, night mode, minimap |
 | `src/js/06-ui.js` | Input, HUD, title/pause/port screens, boot |
 | `src/js/07-dev.js` | Developer settings screen |
+| `src/js/08-captain.js` | Feature: captain portrait |
 | `src/js/99-start.js` | Starts the game after every feature has registered |
 
 The JS files share one global scope and are concatenated in order by `build.sh`.

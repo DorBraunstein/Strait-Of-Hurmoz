@@ -67,7 +67,10 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .mini-btns{display:flex;gap:6px;pointer-events:auto}
 .mini-btns button{min-width:38px;height:30px;padding:0 8px;border:1px solid var(--plate-line);border-radius:3px;font-weight:800;font-size:12px;letter-spacing:.08em;color:var(--paper);background:var(--plate-soft)}
 .mini-btns button[aria-pressed="true"]{color:var(--ink);background:var(--paper)}
-.plate-ship{width:min(300px,56vw);display:grid;gap:6px}
+.plate-ship{width:min(300px,56vw);display:flex;gap:10px;align-items:center}
+.ship-info{display:grid;gap:6px;flex:1;min-width:0}
+.plate-ship.has-captain{width:min(372px,64vw)}
+.captain{flex:none;width:60px;height:60px;border-radius:50%}
 .bar-row{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:8px}
 .n{font-family:var(--font-data);font-size:12px;font-variant-numeric:tabular-nums;min-width:62px;text-align:right}
 .ship-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px}
@@ -203,6 +206,8 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
   .lvl{font-size:17px}
   .time{font-size:16px}
   .act kbd{display:none}
+  .plate-ship.has-captain{width:min(300px,58vw);gap:7px}
+  .captain{width:42px;height:42px}
 }
 @media (max-height:520px){
   .ticker-inner{height:22px}
@@ -215,7 +220,10 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
   .k{font-size:9px}
   #hQuota{font-size:11px}
   .price{font-size:13px}
-  .plate-ship{width:min(220px,36vw);gap:3px}
+  .plate-ship{width:min(220px,36vw);gap:6px}
+  .ship-info{gap:3px}
+  .plate-ship.has-captain{width:min(270px,42vw)}
+  .captain{width:44px;height:44px}
   .bar-row{grid-template-columns:38px 1fr auto;gap:6px}
   .n{font-size:11px;min-width:50px}
   .ship-meta{font-size:11px}
@@ -253,9 +261,12 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
   </div>
   <div class="hud-bottom">
     <div class="plate plate-ship">
-      <div class="bar-row"><span class="k">HULL</span><div id="hHullBar" class="bar hull"><i id="hHull"></i></div><span id="hHullN" class="n">100</span></div>
-      <div class="bar-row"><span class="k">CARGO</span><div class="bar cargo"><i id="hCargo"></i></div><span id="hCargoN" class="n">0k bbl</span></div>
-      <div class="ship-meta"><span id="hSpeed">0.0 kn</span><span id="hChips"></span></div>
+      <canvas id="captain" class="captain" width="128" height="128" hidden aria-hidden="true"></canvas>
+      <div class="ship-info">
+        <div class="bar-row"><span class="k">HULL</span><div id="hHullBar" class="bar hull"><i id="hHull"></i></div><span id="hHullN" class="n">100</span></div>
+        <div class="bar-row"><span class="k">CARGO</span><div class="bar cargo"><i id="hCargo"></i></div><span id="hCargoN" class="n">0k bbl</span></div>
+        <div class="ship-meta"><span id="hSpeed">0.0 kn</span><span id="hChips"></span></div>
+      </div>
     </div>
     <div class="actions">
       <button id="bFlare" class="act" type="button" aria-label="Fire flares">
