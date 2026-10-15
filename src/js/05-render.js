@@ -3,7 +3,7 @@
    RENDER — the chart, the ships, the chaos
    ========================================================= */
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d'); // swapped temporarily by withCtx() to paint previews
 const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
 const fxCv = document.createElement('canvas'), fxc = fxCv.getContext('2d');
 let DPR = 1, VW = 800, VH = 600, zoom = 1;
@@ -24,6 +24,11 @@ function resize() {
   const r = mini.getBoundingClientRect();
   if (r.width > 0) { mini.width = Math.round(r.width * DPR); mini.height = Math.round(r.height * DPR); }
 }
+/** Run fn with the shared drawing helpers pointed at another 2D context. */
+function withCtx(c, fn) { const keep = ctx; ctx = c; try { fn(); } finally { ctx = keep; } }
+/** Optional painter for the player's tanker (skins); returns true when it drew the ship. */
+let shipPainter = null;
+function paintPlayerShip(x, y, a, o) { if (!(shipPainter && shipPainter(x, y, a, o))) drawShipShape('tanker', x, y, a, o); }
 const inView = (V, x, y, m) => x > V.x0 - m && x < V.x1 + m && y > V.y0 - m && y < V.y1 + m;
 const w2s = (x, y) => [(x - RC.x) * zoom + VW / 2, (y - RC.y) * zoom + VH / 2];
 const px = n => n / zoom; // screen pixels -> world units
@@ -349,7 +354,7 @@ function drawShipShape(kind, x, y, a, o) {
   if (kind === 'dhow') { ctx.beginPath(); ctx.ellipse(0, 0, L / 2, 6, 0, 0, TAU); ctx.fill(); } else { hullPath(L, 16); ctx.fill(); }
   ctx.restore();
   if (kind === 'tanker') {
-    hullPath(L, 16); ctx.fillStyle = '#1F2833'; ctx.fill();
+    hullPath(L, 16); ctx.fillStyle = o.hull || '#1F2833'; ctx.fill();
     ctx.save(); ctx.scale(0.9, 0.78); hullPath(L, 16); ctx.fillStyle = o.deck || '#A5432F'; ctx.fill(); ctx.restore();
     const h = L / 2;
     ctx.strokeStyle = '#E8D9B0'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-h * 0.55, 0); ctx.lineTo(h * 0.78, 0); ctx.stroke();
@@ -419,7 +424,7 @@ function drawPlayer() {
   drawWake(P.trail, 4, 20, 0.85);
   ctx.save();
   if (P.dead) { ctx.globalAlpha = clamp(1 - P.sinkT / 3.5, 0, 1); }
-  drawShipShape('tanker', P.x, P.y, P.a, { cargo: P.cargo / P.cap, deck: '#A5432F' });
+  paintPlayerShip(P.x, P.y, P.a, { cargo: P.cargo / P.cap, deck: '#A5432F' });
   ctx.restore();
   if (P.dead) return;
   if (P.inv > 0 && Math.floor(P.inv * 20) % 2) { ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#FFFFFF'; ctx.translate(P.x, P.y); ctx.rotate(P.a); hullPath(64, 16); ctx.fill(); ctx.restore(); }

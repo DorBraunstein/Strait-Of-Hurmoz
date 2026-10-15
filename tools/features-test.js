@@ -85,6 +85,21 @@ check('events: special order pays extra, ducks fine you', async page => {
   assert(await page.evaluate(() => !!EV.order), 'an order should start when its timer runs out');
 });
 
+check('skins: badge unlocks a skin, picker selects it, game paints it', async page => {
+  assert(await page.evaluate(() => !document.getElementById('tSkins').hidden), 'skin picker should show on the title screen');
+  const locked = await page.$$eval('#tSkinRow .skin.locked', els => els.length);
+  assert(locked === 7, 'all skins but Classic should start locked (got ' + locked + ')');
+  await page.evaluate(() => { save.ach.first = Date.now(); renderSkinPicker(); });
+  await page.click('#tSkinRow .skin:nth-child(2)');
+  assert(await page.evaluate(() => save.skin === 'pink' && currentSkin() === 'pink'), 'clicking an unlocked skin should select it');
+  await page.click('#tSkinRow .skin:nth-child(3)');
+  assert(await page.evaluate(() => save.skin === 'pink'), 'locked skins must not be selectable');
+  await page.click('#bPlay'); await sleep(200);
+  assert(await page.evaluate(() => shipPainter(0, 0, 0, {}) === true), 'skinned ship should be painted by the skin painter');
+  await page.evaluate(() => setFlag('skins', false));
+  assert(await page.evaluate(() => shipPainter(0, 0, 0, {}) === false), 'feature off should fall back to the classic tanker');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });

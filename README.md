@@ -28,6 +28,7 @@ the browser (`localStorage`) and apply from the next level you start.
 | Feature | Switch id | What it adds |
 | --- | --- | --- |
 | Special orders and rubber ducks | `events` | Absurd buyer requests (one barrel, not a scratch, speed run, serenade, smoky flavour) and duckling convoys that cost money when hit |
+| Ship skins | `skins` | Badge-unlocked tankers (Barbie Crude, Dazzle Camo, Jolly Roger, Pool Flamingo, Captain Quack, Big Tuna, Midas Touch) with a picker on the title screen |
 | Captain portrait | `captain` | Cartoon captain in the HUD: sweats near mines, screams at missiles, chews pizza, salutes buyers, sulks when boarded |
 
 Optional features live in their own files. They register with `feature({ id, name, group, desc })`, check
@@ -53,6 +54,7 @@ Events: `levelStart`, `update`, `levelEnd`, `port`, `portLedger`, `title`, `boot
 | `src/js/07-dev.js` | Developer settings screen |
 | `src/js/08-captain.js` | Feature: captain portrait |
 | `src/js/09-events.js` | Feature: special orders and rubber duck convoys |
+| `src/js/10-skins.js` | Feature: ship skins |
 | `src/js/99-start.js` | Starts the game after every feature has registered |
 
 The JS files share one global scope and are concatenated in order by `build.sh`.
