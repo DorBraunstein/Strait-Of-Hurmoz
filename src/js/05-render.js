@@ -270,7 +270,7 @@ function drawZones(V) {
     spacedText('→ ' + g.name, ax, ay + 18, fs * 0.08, true);
     setFont(700, fs * 0.78, FONT_MONO);
     ctx.fillStyle = hot ? '#B4500A' : C.magenta;
-    const label = hot ? 'HOT ×' + (g.mult * 2).toFixed(2).replace(/0$/, '') + ' · ' + Math.ceil(G.hot.t) + 's' : '×' + g.mult.toFixed(2).replace(/0$/, '') + (g.sub ? ' · ' + g.sub : '');
+    const label = hot ? 'HOT ×' + (g.mult * hotMult()).toFixed(2).replace(/0$/, '') + ' · ' + Math.ceil(G.hot.t) + 's' : '×' + g.mult.toFixed(2).replace(/0$/, '') + (g.sub ? ' · ' + g.sub : '');
     spacedText(label, ax, ay + 18 + fs, 0, true);
   }
 }

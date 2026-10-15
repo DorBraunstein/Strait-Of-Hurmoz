@@ -138,7 +138,7 @@ function updateSpawns(dt) {
   tick('amb', () => { const P = G.P, pt = randomWater(20, 9999, P.x, P.y, 520, 820, 30); if (pt) spawnBallistic(pt[0], pt[1], 0, rand(90, 120)); });
   G.timers.crate -= dt;
   if (G.timers.crate <= 0) { G.timers.crate = rand(9, 13); if (G.crates.length < 4) spawnCrate(); }
-  if (c.pizza) { G.timers.pizza -= dt; if (G.timers.pizza <= 0) { G.timers.pizza = rand(24, 38) * (c.pizzaRate || 1); spawnPizza(); } }
+  if (c.pizza) { G.timers.pizza -= dt; if (G.timers.pizza <= 0) { G.timers.pizza = rand(24, 38) * (c.pizzaRate || 1) * (G.mod.pizzaRate || 1); spawnPizza(); } }
 }
 
 /* ---------- hazards ---------- */
@@ -235,6 +235,10 @@ function updateBoats(dt) {
   }
 }
 function attachBoat(b) {
+  if (G.mod.greasy) { // perk: boarders slip right off
+    b.st = 'flee'; b.flee = 2.4; b.v = 200; b.a = Math.atan2(b.y - G.P.y, b.x - G.P.x); b.say = 'TOO GREASY!'; b.sayT = 1.6;
+    popup(b.x, b.y - 20, 'SLIPPED OFF', C.magenta, 18); emit('shaken', b, false); return;
+  }
   const P = G.P, c = Math.cos(P.a), s = Math.sin(P.a), dx = b.x - P.x, dy = b.y - P.y;
   const lx = dx * c + dy * s, ly = -dx * s + dy * c;
   b.ox = clamp(lx, -22, 22); b.oy = (ly >= 0 ? 1 : -1) * 15;
@@ -290,7 +294,7 @@ function updateDrones(dt) {
 }
 function collectPizza(d) {
   d.dead = true;
-  const P = G.P, heal = Math.round(P.maxHull * 0.2);
+  const P = G.P, heal = Math.round(P.maxHull * 0.2 * (G.mod.pizzaHeal || 1));
   P.hull = Math.min(P.maxHull, P.hull + heal);
   if (G.attract) return;
   popup(P.x, P.y - 42, 'PIZZA! +' + heal + ' HULL', '#2E9E6A', 24); Snd.power(); radio('pizza');
@@ -298,7 +302,7 @@ function collectPizza(d) {
   for (let i = 0; i < 16; i++) { const a = rand(TAU); part('confetti', P.x, P.y, Math.cos(a) * 160, Math.sin(a) * 160, 0.9, 4, { drag: 2, col: pick(['#E8B04A', '#C2352B', '#2E9E6A']), rot: rand(TAU), vr: rand(-8, 8) }); }
 }
 function updateMissiles(dt) {
-  const P = G.P, vmax = 440 * Math.pow(G.cfg.threat, 0.7);
+  const P = G.P, vmax = 440 * Math.pow(G.cfg.threat, 0.7) * (G.mod.missileSpd || 1);
   for (const m of G.missiles) {
     if (m.dead) continue;
     m.t += dt; m.v = Math.min(vmax, m.v + 240 * dt);

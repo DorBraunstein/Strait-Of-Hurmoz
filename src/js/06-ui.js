@@ -269,7 +269,7 @@ function hudTick(dt) {
   const d = G.price - G.priceAgo;
   setText(UI.priceD, 'pd', (d >= 0 ? '▲ +' : '▼ ') + d.toFixed(2));
   const dc = 'delta ' + (d >= 0 ? 'rise' : 'fall'); if (lastHud.dc !== dc) { lastHud.dc = dc; UI.priceD.className = dc; }
-  const hotTxt = G.hot ? 'HOT ' + G.hot.g.name + ' ×2 · ' + Math.ceil(G.hot.t) + 's' : '';
+  const hotTxt = G.hot ? 'HOT ' + G.hot.g.name + ' ×' + hotMult() + ' · ' + Math.ceil(G.hot.t) + 's' : '';
   setText(UI.hot, 'hot', hotTxt); if (lastHud.hotH !== !G.hot) { lastHud.hotH = !G.hot; UI.hot.hidden = !G.hot; }
   const hp = P.hull / P.maxHull;
   setWidth(UI.hull, 'hull', hp * 100); setText(UI.hullN, 'hullN', Math.ceil(P.hull) + '/' + P.maxHull);

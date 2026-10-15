@@ -59,7 +59,8 @@ function newGame(level, attract, opts) {
     timers: {}, shake: 0, flash: 0, flashCol: '230,40,30',
     cam: { x: sx, y: sy }, route: [], routeT: 0, routeTarget: null,
     radio: null, radioT: 0, radioGap: 0, hint: null, hintStage: 0, endT: 0, result: null, fullShown: false,
-    P: makePlayer(sx, sy), attractT: 0, payMult: 1, musicBoost: 0
+    P: makePlayer(sx, sy), attractT: 0, payMult: 1, musicBoost: 0,
+    mod: {} // per-level modifiers set by features (perks)
   };
   LOADOUT = null;
   const c = cfg, keepRandom = Math.random;
@@ -317,7 +318,7 @@ function explode(x, y, r, o) {
 function nearMiss(x, y) {
   if (G.mode !== 'play' || G.P.dead) return;
   G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 3; G.near++; save.st.near++;
-  const v = 2 + G.level * 0.4;
+  const v = (2 + G.level * 0.4) * (G.mod.nearMult || 1);
   Snd.near();
   addBonus(v * G.combo, G.P.x, G.P.y - 46, G.combo > 1 ? 'CLOSE CALL ×' + G.combo : 'CLOSE CALL', C.magenta);
   if (G.combo >= 3) say('CLOSE CALL ×' + G.combo, 'SOMEONE GIVE THIS CAPTAIN A MEDAL', C.magenta, 1.2);
@@ -355,7 +356,7 @@ function deliver(g) {
   const hot = G.hot && G.hot.g === g;
   const ex = { mult: 1, flat: 0 };
   emit('preDeliver', g, ex, hot);
-  const mult = g.mult * (hot ? 2 : 1) * ex.mult;
+  const mult = g.mult * (hot ? hotMult() : 1) * ex.mult;
   const val = (P.cargo * G.price * mult + ex.flat) * (G.payMult || 1);
   const info = { hot, cargo: P.cargo, full: P.cargo >= P.cap * 0.95 };
   G.earned += val; G.deliveries++; save.st.deliv++;
@@ -410,12 +411,13 @@ function updatePrice(dt) {
   if (G.priceT >= 1) { G.priceT = 0; G.priceAgo = G.prevPrice; G.prevPrice = G.price; }
   if (G.price > 150 && G.mode === 'play') ach('chaos');
 }
+function hotMult() { return G.mod.hotMult || 2; }
 function updateHot(dt) {
   if (G.attract) return;
   if (G.hot) { G.hot.t -= dt; if (G.hot.t <= 0) { G.hot = null; G.hotT = rand(8, 14); } }
   else if (G.mode === 'play') {
     G.hotT -= dt;
-    if (G.hotT <= 0) { const g = pick(GATES); G.hot = { g, t: 22 }; say('HOT DEAL', g.name + ' PAYS ×2 FOR 22 SECONDS', C.amber, 2); radio('hot', g.name); Snd.alarm(); emit('hot', g); }
+    if (G.hotT <= 0) { const g = pick(GATES), ht = Math.round(22 * (G.mod.hotTime || 1)); G.hot = { g, t: ht }; say('HOT DEAL', g.name + ' PAYS ×' + hotMult() + ' FOR ' + ht + ' SECONDS', C.amber, 2); radio('hot', g.name); Snd.alarm(); emit('hot', g); }
   }
 }
 function updateRoute() {

@@ -204,6 +204,28 @@ check('legend: full meter doubles pay for 10 seconds', async page => {
   assert(r.after === 1, 'pay should return to normal after Legend mode');
 });
 
+check('perks: pick after a win, applies to the next level until beaten', async page => {
+  await page.click('#bPlay'); await sleep(200);
+  await page.evaluate(() => { G.P.cargo = G.P.cap; G.P.x = GATES[0].x - 60; G.P.y = GATES[0].y; });
+  await sleep(2700);
+  const n = await page.$$eval('#pPerks .perk', els => els.length);
+  assert(n === 3, 'the results screen should offer 3 perks after a win (got ' + n + ')');
+  await page.click('#pPerks .perk:nth-child(1)');
+  const chosen = await page.evaluate(() => save.perk && save.perk.level === 2 && save.perk.id);
+  assert(chosen, 'clicking a perk should reserve it for level 2');
+  const r = await page.evaluate(() => {
+    save.perk = { id: 'glass', level: 2 }; startLevel(2);
+    return { pay: G.payMult, hull: G.P.maxHull, chip: !!G.perk };
+  });
+  assert(r.pay === 2 && r.hull === 50 && r.chip, 'Glass Cannon should double pay and halve the hull');
+  await page.evaluate(() => { save.perk = { id: 'greasy', level: 2 }; startLevel(2); G.boats.push({ x: G.P.x + 5, y: G.P.y + 8, a: 0, v: 0, st: 'chase', t: 0, ox: 0, oy: 0, tries: 0, flee: 0, say: null, sayT: 0, trail: [], dead: false }); });
+  await sleep(250);
+  assert(await page.evaluate(() => G.P.boarders === 0), 'Greasy Hull should stop boarders');
+  await page.evaluate(() => { G.cfg.quota = 0.001; G.P.cargo = 0.5; G.P.x = GATES[0].x - 60; G.P.y = GATES[0].y; });
+  await sleep(600);
+  assert(await page.evaluate(() => save.perk === null), 'winning the level should use up the perk');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });

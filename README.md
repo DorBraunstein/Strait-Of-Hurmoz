@@ -34,6 +34,7 @@ the browser (`localStorage`) and apply from the next level you start.
 | Daily Strait | `daily` | One 90-second score attack per day with a daily twist (night, fog, mine buffet, drone wedding, ...), the same course for everyone, a rental tanker, best score, day streak and a career cash reward |
 | Missions | `missions` | Three seeded optional goals per level (honk, deliver to a country, combos, no flares, hull above 70%, ...) with cash rewards, a HUD tracker and results summary |
 | Captain Legend meter | `legend` | Stylish play fills a meter; when full, 10 seconds of double pay, a heavy-metal riff, a golden aura and flame wake |
+| Perk picks | `perks` | After each win, pick 1 of 3 silly perks for the next level (Shockwave Horn, Greasy Hull, Glass Cannon, Hot Streak, Crate Magnet, ...); kept until that level is beaten |
 | Captain portrait | `captain` | Cartoon captain in the HUD: sweats near mines, screams at missiles, chews pizza, salutes buyers, sulks when boarded |
 
 Optional features live in their own files. They register with `feature({ id, name, group, desc })`, check
@@ -65,6 +66,7 @@ Events: `levelStart`, `update`, `levelEnd`, `port`, `portLedger`, `title`, `boot
 | `src/js/13-daily.js` | Feature: Daily Strait |
 | `src/js/14-missions.js` | Feature: missions |
 | `src/js/15-legend.js` | Feature: Captain Legend meter |
+| `src/js/16-perks.js` | Feature: perk picks |
 | `src/js/99-start.js` | Starts the game after every feature has registered |
 
 The JS files share one global scope and are concatenated in order by `build.sh`.

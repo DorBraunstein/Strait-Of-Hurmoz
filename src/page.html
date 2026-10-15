@@ -197,6 +197,14 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .pm.done b,.pm.before b{color:var(--good)}
 .pm i{font-style:normal;font-family:var(--font-data);font-size:12px;color:var(--ink-2)}
 .pm.done i{color:var(--good);font-weight:600}
+.port-perks .sec{margin:14px 0 8px}
+.perk-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.perk{display:grid;gap:4px;align-content:start;text-align:left;padding:10px 12px;border:2px solid var(--ink);background:#FBF6E8}
+.perk:hover{background:#fff}
+.perk b{font-size:15px;letter-spacing:.04em}
+.perk span{font-size:13px;color:var(--ink-2);line-height:1.25}
+.perk.sel{background:var(--magenta);border-color:var(--magenta);color:var(--paper)}
+.perk.sel span{color:var(--paper)}
 .daily-btn{background:var(--ink);color:var(--paper)}
 .daily-line{margin:10px 0 0;font-size:14px;color:var(--ink-2);font-weight:600}
 .daily-line b{color:var(--ink)}
@@ -228,6 +236,7 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 
 @media (max-width:720px){
   .ups{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .perk-row{grid-template-columns:1fr}
   .up{min-height:0}
   .howto{grid-template-columns:1fr}
 }
@@ -401,6 +410,7 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
     </div>
     <dl id="pLedger" class="ledger"></dl>
     <div id="pMissions" class="port-missions" hidden></div>
+    <div id="pPerks" class="port-perks" hidden></div>
     <div class="cash-row"><span>CASH IN THE BANK</span><b id="pCash">$0M</b></div>
     <h3 class="sec">DRY DOCK · UPGRADES</h3>
     <div id="pUps" class="ups"></div>

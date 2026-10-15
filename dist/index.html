@@ -199,6 +199,14 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .pm.done b,.pm.before b{color:var(--good)}
 .pm i{font-style:normal;font-family:var(--font-data);font-size:12px;color:var(--ink-2)}
 .pm.done i{color:var(--good);font-weight:600}
+.port-perks .sec{margin:14px 0 8px}
+.perk-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.perk{display:grid;gap:4px;align-content:start;text-align:left;padding:10px 12px;border:2px solid var(--ink);background:#FBF6E8}
+.perk:hover{background:#fff}
+.perk b{font-size:15px;letter-spacing:.04em}
+.perk span{font-size:13px;color:var(--ink-2);line-height:1.25}
+.perk.sel{background:var(--magenta);border-color:var(--magenta);color:var(--paper)}
+.perk.sel span{color:var(--paper)}
 .daily-btn{background:var(--ink);color:var(--paper)}
 .daily-line{margin:10px 0 0;font-size:14px;color:var(--ink-2);font-weight:600}
 .daily-line b{color:var(--ink)}
@@ -230,6 +238,7 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 
 @media (max-width:720px){
   .ups{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .perk-row{grid-template-columns:1fr}
   .up{min-height:0}
   .howto{grid-template-columns:1fr}
 }
@@ -403,6 +412,7 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
     </div>
     <dl id="pLedger" class="ledger"></dl>
     <div id="pMissions" class="port-missions" hidden></div>
+    <div id="pPerks" class="port-perks" hidden></div>
     <div class="cash-row"><span>CASH IN THE BANK</span><b id="pCash">$0M</b></div>
     <h3 class="sec">DRY DOCK · UPGRADES</h3>
     <div id="pUps" class="ups"></div>
@@ -1052,7 +1062,8 @@ function newGame(level, attract, opts) {
     timers: {}, shake: 0, flash: 0, flashCol: '230,40,30',
     cam: { x: sx, y: sy }, route: [], routeT: 0, routeTarget: null,
     radio: null, radioT: 0, radioGap: 0, hint: null, hintStage: 0, endT: 0, result: null, fullShown: false,
-    P: makePlayer(sx, sy), attractT: 0, payMult: 1, musicBoost: 0
+    P: makePlayer(sx, sy), attractT: 0, payMult: 1, musicBoost: 0,
+    mod: {} // per-level modifiers set by features (perks)
   };
   LOADOUT = null;
   const c = cfg, keepRandom = Math.random;
@@ -1310,7 +1321,7 @@ function explode(x, y, r, o) {
 function nearMiss(x, y) {
   if (G.mode !== 'play' || G.P.dead) return;
   G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 3; G.near++; save.st.near++;
-  const v = 2 + G.level * 0.4;
+  const v = (2 + G.level * 0.4) * (G.mod.nearMult || 1);
   Snd.near();
   addBonus(v * G.combo, G.P.x, G.P.y - 46, G.combo > 1 ? 'CLOSE CALL ×' + G.combo : 'CLOSE CALL', C.magenta);
   if (G.combo >= 3) say('CLOSE CALL ×' + G.combo, 'SOMEONE GIVE THIS CAPTAIN A MEDAL', C.magenta, 1.2);
@@ -1348,7 +1359,7 @@ function deliver(g) {
   const hot = G.hot && G.hot.g === g;
   const ex = { mult: 1, flat: 0 };
   emit('preDeliver', g, ex, hot);
-  const mult = g.mult * (hot ? 2 : 1) * ex.mult;
+  const mult = g.mult * (hot ? hotMult() : 1) * ex.mult;
   const val = (P.cargo * G.price * mult + ex.flat) * (G.payMult || 1);
   const info = { hot, cargo: P.cargo, full: P.cargo >= P.cap * 0.95 };
   G.earned += val; G.deliveries++; save.st.deliv++;
@@ -1403,12 +1414,13 @@ function updatePrice(dt) {
   if (G.priceT >= 1) { G.priceT = 0; G.priceAgo = G.prevPrice; G.prevPrice = G.price; }
   if (G.price > 150 && G.mode === 'play') ach('chaos');
 }
+function hotMult() { return G.mod.hotMult || 2; }
 function updateHot(dt) {
   if (G.attract) return;
   if (G.hot) { G.hot.t -= dt; if (G.hot.t <= 0) { G.hot = null; G.hotT = rand(8, 14); } }
   else if (G.mode === 'play') {
     G.hotT -= dt;
-    if (G.hotT <= 0) { const g = pick(GATES); G.hot = { g, t: 22 }; say('HOT DEAL', g.name + ' PAYS ×2 FOR 22 SECONDS', C.amber, 2); radio('hot', g.name); Snd.alarm(); emit('hot', g); }
+    if (G.hotT <= 0) { const g = pick(GATES), ht = Math.round(22 * (G.mod.hotTime || 1)); G.hot = { g, t: ht }; say('HOT DEAL', g.name + ' PAYS ×' + hotMult() + ' FOR ' + ht + ' SECONDS', C.amber, 2); radio('hot', g.name); Snd.alarm(); emit('hot', g); }
   }
 }
 function updateRoute() {
@@ -1578,7 +1590,7 @@ function updateSpawns(dt) {
   tick('amb', () => { const P = G.P, pt = randomWater(20, 9999, P.x, P.y, 520, 820, 30); if (pt) spawnBallistic(pt[0], pt[1], 0, rand(90, 120)); });
   G.timers.crate -= dt;
   if (G.timers.crate <= 0) { G.timers.crate = rand(9, 13); if (G.crates.length < 4) spawnCrate(); }
-  if (c.pizza) { G.timers.pizza -= dt; if (G.timers.pizza <= 0) { G.timers.pizza = rand(24, 38) * (c.pizzaRate || 1); spawnPizza(); } }
+  if (c.pizza) { G.timers.pizza -= dt; if (G.timers.pizza <= 0) { G.timers.pizza = rand(24, 38) * (c.pizzaRate || 1) * (G.mod.pizzaRate || 1); spawnPizza(); } }
 }
 
 /* ---------- hazards ---------- */
@@ -1675,6 +1687,10 @@ function updateBoats(dt) {
   }
 }
 function attachBoat(b) {
+  if (G.mod.greasy) { // perk: boarders slip right off
+    b.st = 'flee'; b.flee = 2.4; b.v = 200; b.a = Math.atan2(b.y - G.P.y, b.x - G.P.x); b.say = 'TOO GREASY!'; b.sayT = 1.6;
+    popup(b.x, b.y - 20, 'SLIPPED OFF', C.magenta, 18); emit('shaken', b, false); return;
+  }
   const P = G.P, c = Math.cos(P.a), s = Math.sin(P.a), dx = b.x - P.x, dy = b.y - P.y;
   const lx = dx * c + dy * s, ly = -dx * s + dy * c;
   b.ox = clamp(lx, -22, 22); b.oy = (ly >= 0 ? 1 : -1) * 15;
@@ -1730,7 +1746,7 @@ function updateDrones(dt) {
 }
 function collectPizza(d) {
   d.dead = true;
-  const P = G.P, heal = Math.round(P.maxHull * 0.2);
+  const P = G.P, heal = Math.round(P.maxHull * 0.2 * (G.mod.pizzaHeal || 1));
   P.hull = Math.min(P.maxHull, P.hull + heal);
   if (G.attract) return;
   popup(P.x, P.y - 42, 'PIZZA! +' + heal + ' HULL', '#2E9E6A', 24); Snd.power(); radio('pizza');
@@ -1738,7 +1754,7 @@ function collectPizza(d) {
   for (let i = 0; i < 16; i++) { const a = rand(TAU); part('confetti', P.x, P.y, Math.cos(a) * 160, Math.sin(a) * 160, 0.9, 4, { drag: 2, col: pick(['#E8B04A', '#C2352B', '#2E9E6A']), rot: rand(TAU), vr: rand(-8, 8) }); }
 }
 function updateMissiles(dt) {
-  const P = G.P, vmax = 440 * Math.pow(G.cfg.threat, 0.7);
+  const P = G.P, vmax = 440 * Math.pow(G.cfg.threat, 0.7) * (G.mod.missileSpd || 1);
   for (const m of G.missiles) {
     if (m.dead) continue;
     m.t += dt; m.v = Math.min(vmax, m.v + 240 * dt);
@@ -2218,7 +2234,7 @@ function drawZones(V) {
     spacedText('→ ' + g.name, ax, ay + 18, fs * 0.08, true);
     setFont(700, fs * 0.78, FONT_MONO);
     ctx.fillStyle = hot ? '#B4500A' : C.magenta;
-    const label = hot ? 'HOT ×' + (g.mult * 2).toFixed(2).replace(/0$/, '') + ' · ' + Math.ceil(G.hot.t) + 's' : '×' + g.mult.toFixed(2).replace(/0$/, '') + (g.sub ? ' · ' + g.sub : '');
+    const label = hot ? 'HOT ×' + (g.mult * hotMult()).toFixed(2).replace(/0$/, '') + ' · ' + Math.ceil(G.hot.t) + 's' : '×' + g.mult.toFixed(2).replace(/0$/, '') + (g.sub ? ' · ' + g.sub : '');
     spacedText(label, ax, ay + 18 + fs, 0, true);
   }
 }
@@ -3021,7 +3037,7 @@ function hudTick(dt) {
   const d = G.price - G.priceAgo;
   setText(UI.priceD, 'pd', (d >= 0 ? '▲ +' : '▼ ') + d.toFixed(2));
   const dc = 'delta ' + (d >= 0 ? 'rise' : 'fall'); if (lastHud.dc !== dc) { lastHud.dc = dc; UI.priceD.className = dc; }
-  const hotTxt = G.hot ? 'HOT ' + G.hot.g.name + ' ×2 · ' + Math.ceil(G.hot.t) + 's' : '';
+  const hotTxt = G.hot ? 'HOT ' + G.hot.g.name + ' ×' + hotMult() + ' · ' + Math.ceil(G.hot.t) + 's' : '';
   setText(UI.hot, 'hot', hotTxt); if (lastHud.hotH !== !G.hot) { lastHud.hotH = !G.hot; UI.hot.hidden = !G.hot; }
   const hp = P.hull / P.maxHull;
   setWidth(UI.hull, 'hull', hp * 100); setText(UI.hullN, 'hullN', Math.ceil(P.hull) + '/' + P.maxHull);
@@ -4403,6 +4419,105 @@ onEvt('drawScreen', () => {
   ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
 });
 onEvt('portLedger', (row) => { if (lgOn() && LG.count) row('Captain Legend mode', LG.count + (LG.count === 1 ? ' time' : ' times')); });
+
+/* =========================================================
+   FEATURE: PERK PICKS — after a win, choose 1 of 3 silly perks for the next level
+   ========================================================= */
+feature({ id: 'perks', group: 'ADDICTIVE', name: 'Perk picks', desc: 'After each win, pick 1 of 3 silly perks (shockwave horn, greasy hull, glass cannon, ...) that apply to the next level until you beat it.' });
+
+const PERKS = [
+  { id: 'slowmo', name: 'Slow-Mo Missiles', desc: 'Cruise missiles fly 25% slower.', apply: () => { G.mod.missileSpd = 0.75; } },
+  { id: 'pizza2', name: 'Double Pizza', desc: 'Pizza drones come twice as often and heal twice as much.', apply: () => { G.mod.pizzaHeal = 2; G.mod.pizzaRate = 0.5; G.cfg.pizza = true; G.timers.pizza = 6; } },
+  { id: 'shock', name: 'Shockwave Horn', desc: 'Every honk knocks drones and missiles out of the sky nearby.', apply: () => { G.mod.shockHorn = true; } },
+  { id: 'greasy', name: 'Greasy Hull', desc: 'Boarders slip right off. Every single time.', apply: () => { G.mod.greasy = true; } },
+  { id: 'lucky', name: 'Lucky Rubber Duck', desc: 'Start with two extra Bubble Wrap charges.', apply: () => { G.P.bubble += 2; } },
+  { id: 'pumps', name: 'Bulk Discount', desc: 'Pumps load twice as fast.', apply: () => { G.P.pump *= 2; } },
+  { id: 'turbo', name: 'Turbo Tuesday', desc: '18% more top speed, any day of the week.', apply: () => { G.P.maxSpd *= 1.18; } },
+  { id: 'flares', name: 'Flare Party', desc: 'Three extra flares.', apply: () => { G.P.flares += 3; } },
+  { id: 'insider', name: 'Insider Trading', desc: 'Brent starts $18 higher. Totally legal.', apply: () => { G.cfg.price += 18; } },
+  { id: 'magnet', name: 'Crate Magnet', desc: 'Nearby crates drift toward you.', apply: () => { G.mod.magnet = true; } },
+  { id: 'hotstreak', name: 'Hot Streak', desc: 'HOT deals last twice as long and pay ×2.5.', apply: () => { G.mod.hotTime = 2; G.mod.hotMult = 2.5; } },
+  { id: 'overtime', name: 'Overtime', desc: '20 more seconds on the clock.', apply: () => { G.timeLeft += 20; G.cfg.time += 20; } },
+  { id: 'glass', name: 'Glass Cannon', desc: 'Double pay, half the hull. What could go wrong?', apply: () => { G.payMult = (G.payMult || 1) * 2; G.P.maxHull = Math.max(20, Math.round(G.P.maxHull / 2)); G.P.hull = G.P.maxHull; } },
+  { id: 'fanclub', name: 'Fan Club', desc: 'Close calls pay triple.', apply: () => { G.mod.nearMult = 3; } }
+];
+const perkById = id => PERKS.find(p => p.id === id);
+const pkOn = () => G && !G.attract && feat('perks') && !G.cfg.daily;
+
+onEvt('levelStart', () => {
+  G.perk = null;
+  if (!pkOn() || !save.perk || save.perk.level !== G.level) return;
+  const p = perkById(save.perk.id);
+  if (!p) return;
+  p.apply(); G.perk = p;
+  setTimeout(() => { if (G && G.perk === p && G.mode === 'play') say('PERK: ' + p.name.toUpperCase(), p.desc.toUpperCase(), C.magenta, 2.2); }, 1400);
+});
+onEvt('levelEnd', r => {
+  if (!pkOn() || !r.win || !save.perk || save.perk.level !== G.level) return;
+  save.perk = null; persist();
+});
+onEvt('chips', list => { if (pkOn() && G.perk) list.push('<span class="chip good">PERK · ' + G.perk.name.toUpperCase() + '</span>'); });
+onEvt('honk', () => {
+  if (!pkOn() || !G.mod.shockHorn) return;
+  const P = G.P;
+  let n = 0;
+  for (const m of G.missiles) if (!m.dead && d2(m.x, m.y, P.x, P.y) < 260 * 260) { m.dead = true; boomFx(m.x, m.y, 28); n++; }
+  for (const d of G.drones) if (!d.dead && !d.pizza && d2(d.x, d.y, P.x, P.y) < 260 * 260) { d.dead = true; boomFx(d.x, d.y, 24); n++; }
+  G.rings.push({ x: P.x, y: P.y, r0: 20, r1: 280, t: 0, life: 0.5, w: 12, col: '255,255,255' });
+  addShake(8);
+  if (n) { Snd.boom(0.8, P.x, P.y); popup(P.x, P.y - 60, 'SHOCKWAVE ×' + n, C.magenta, 22); }
+});
+onEvt('update', dt => {
+  if (!pkOn() || !G.mod.magnet || G.mode !== 'play') return;
+  const P = G.P;
+  for (const c of G.crates) {
+    const dx = P.x - c.x, dy = P.y - c.y, d = Math.hypot(dx, dy);
+    if (d < 340 && d > 1) { c.x += dx / d * 170 * dt; c.y += dy / d * 170 * dt; }
+  }
+});
+
+/* ---------- results screen: pick a perk ---------- */
+function perkOffer(level) {
+  if (!save.perkOffer || save.perkOffer.level !== level) {
+    const pool = PERKS.slice();
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    save.perkOffer = { level, ids: pool.slice(0, 3).map(p => p.id) };
+    persist();
+  }
+  return save.perkOffer.ids.map(perkById).filter(Boolean);
+}
+onEvt('port', r => {
+  const box = $('pPerks');
+  box.hidden = true;
+  if (!feat('perks') || !G || G.cfg.daily) return;
+  box.textContent = '';
+  const h = document.createElement('h3'); h.className = 'sec';
+  if (!r.win) {
+    if (save.perk && save.perk.level === G.level && perkById(save.perk.id)) {
+      h.textContent = 'PERK KEPT FOR YOUR RETRY: ' + perkById(save.perk.id).name.toUpperCase();
+      box.append(h); box.hidden = false;
+    }
+    return;
+  }
+  const next = save.level;
+  h.textContent = 'PICK A PERK FOR LEVEL ' + next;
+  const row = document.createElement('div'); row.className = 'perk-row';
+  const render = () => {
+    row.textContent = '';
+    for (const p of perkOffer(next)) {
+      const sel = save.perk && save.perk.level === next && save.perk.id === p.id;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'perk' + (sel ? ' sel' : '');
+      b.setAttribute('aria-pressed', sel ? 'true' : 'false');
+      const nm = document.createElement('b'); nm.textContent = p.name;
+      const ds = document.createElement('span'); ds.textContent = p.desc;
+      b.append(nm, ds);
+      b.addEventListener('click', e => { Snd.init(); Snd.buy(); save.perk = { id: p.id, level: next }; persist(); render(); if (e.detail > 0) b.blur(); });
+      row.append(b);
+    }
+  };
+  render();
+  box.append(h, row); box.hidden = false;
+});
 
 /* =========================================================
    START — runs last, after every feature has registered its listeners
