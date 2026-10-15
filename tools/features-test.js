@@ -62,6 +62,29 @@ check('captain: portrait shows in the HUD and reacts to events', async page => {
   assert(await page.evaluate(() => document.getElementById('captain').hidden), 'portrait should hide when the feature is off');
 });
 
+check('events: special order pays extra, ducks fine you', async page => {
+  await page.click('#bPlay'); await sleep(200);
+  await page.evaluate(() => { startLevel(2); G.mines = []; G.traffic = []; G.cfg.quota = 1e9; });
+  const r = await page.evaluate(async () => {
+    const g = GATES[0];
+    EV.order = { o: ORDERS.find(o => o.id === 'scratch'), g, t: 40, hits0: G.hits, honks0: 0 };
+    const P = G.P; P.cargo = 1; const price = G.price;
+    P.x = g.x - 60; P.y = g.y; P.vx = P.vy = 0;
+    await new Promise(r => setTimeout(r, 250));
+    const paid = G.earned, expect = 1 * price * g.mult * 3;
+    // ducks right in front of the ship
+    P.x = 1200; P.y = 1600; P.vx = P.vy = 0; P.a = 0; G.bonus = 0;
+    EV.ducks = [{ x: 1214, y: 1600, a: 0, big: true, t: 0, hit: false, z: 0, spin: 0, vx: 0, vy: 0, life: 0 }];
+    await new Promise(r => setTimeout(r, 200));
+    return { ratio: paid / expect, bonus: G.bonus, hit: EV.ducks.length === 0 || EV.ducks[0].hit };
+  });
+  assert(Math.abs(r.ratio - 1) < 0.08, 'NOT A SCRATCH order should pay ×3 (got ratio ' + r.ratio.toFixed(2) + ')');
+  assert(r.hit && r.bonus <= -3, 'hitting mother duck should cost $3M (bonus ' + r.bonus + ')');
+  await page.evaluate(() => { startLevel(2); EV.orderT = 0.01; EV.duckT = 0.01; });
+  await sleep(500);
+  assert(await page.evaluate(() => !!EV.order), 'an order should start when its timer runs out');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
