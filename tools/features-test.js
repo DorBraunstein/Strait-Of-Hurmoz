@@ -100,6 +100,29 @@ check('skins: badge unlocks a skin, picker selects it, game paints it', async pa
   assert(await page.evaluate(() => shipPainter(0, 0, 0, {}) === false), 'feature off should fall back to the classic tanker');
 });
 
+check('absurd: lost carrier, seagulls scatter on honk, decoy pulls missiles', async page => {
+  await page.click('#bPlay'); await sleep(200);
+  const r = await page.evaluate(async () => {
+    startLevel(9); G.P.hull = G.P.maxHull = 99999; G.cfg.quota = 1e9;
+    const out = { carrier: !!AB.carrier };
+    spawnGulls(); out.gulls = AB.gulls.length;
+    const P = G.P; for (const g of AB.gulls) { g.x = P.x + rand(-150, 150); g.y = P.y + rand(-150, 150); }
+    P.honkCD = 0; honk(); out.fled = AB.gulls.filter(g => g.flee).length;
+    AB.decoys = []; spawnDecoy(); out.decoy = AB.decoys.length;
+    const d = AB.decoys[0]; G.missiles = [];
+    G.missiles.push({ x: d.x + 500, y: d.y, a: Math.PI, v: 300, t: 0, fuel: 9, target: null, lost: false, armed: true, min: 1e9, nm: false, trail: [], dead: false });
+    await new Promise(r => setTimeout(r, 300));
+    out.targeted = G.missiles.length ? G.missiles[0].target === d : 'gone';
+    return out;
+  });
+  assert(r.carrier, 'level 9 should always have the lost carrier');
+  assert(r.gulls >= 20, 'a seagull swarm should have 20+ gulls');
+  assert(r.fled === r.gulls, 'honking should scatter every nearby gull (' + r.fled + '/' + r.gulls + ')');
+  assert(r.decoy === 1 && (r.targeted === true || r.targeted === 'gone'), 'decoy should attract a nearby missile (' + r.targeted + ')');
+  await page.evaluate(() => { setFlag('absurd', false); startLevel(9); });
+  assert(await page.evaluate(() => !AB.carrier), 'feature off should not spawn the carrier');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
