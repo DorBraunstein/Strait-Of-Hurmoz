@@ -504,5 +504,5 @@ function update(dt) {
   G.mines = G.mines.filter(live); G.boats = G.boats.filter(live); G.drones = G.drones.filter(live); G.missiles = G.missiles.filter(live);
   G.balls = G.balls.filter(live); G.subs = G.subs.filter(live); G.torps = G.torps.filter(live); G.crates = G.crates.filter(live); G.flares = G.flares.filter(live);
   const threat = G.missiles.length * 0.18 + G.drones.filter(d => !d.pizza).length * 0.07 + G.balls.length * 0.2 + G.boats.length * 0.12 + G.torps.length * 0.2;
-  Snd.target = G.attract ? 0.15 : clamp(0.3 + threat + (G.cfg.threat - 1) * 0.6, 0.3, 1);
+  Snd.target = G.attract ? 0.15 : clamp(0.3 + threat + (G.cfg.threat - 1) * 0.6 + (G.musicBoost || 0), 0.3, 1);
 }

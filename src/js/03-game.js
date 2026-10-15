@@ -59,7 +59,7 @@ function newGame(level, attract, opts) {
     timers: {}, shake: 0, flash: 0, flashCol: '230,40,30',
     cam: { x: sx, y: sy }, route: [], routeT: 0, routeTarget: null,
     radio: null, radioT: 0, radioGap: 0, hint: null, hintStage: 0, endT: 0, result: null, fullShown: false,
-    P: makePlayer(sx, sy), attractT: 0
+    P: makePlayer(sx, sy), attractT: 0, payMult: 1, musicBoost: 0
   };
   LOADOUT = null;
   const c = cfg, keepRandom = Math.random;
@@ -132,6 +132,7 @@ function trailPush(o, x, y, gap, keep) {
 function total() { return G.earned + G.bonus; }
 function addBonus(v, x, y, label, col) {
   if (G.mode !== 'play') return;
+  v *= G.payMult || 1;
   G.bonus += v;
   popup(x, y, (label ? label + ' ' : '') + '+' + fmtMoney(v), col || C.magenta, 18);
   checkQuota();
@@ -355,7 +356,7 @@ function deliver(g) {
   const ex = { mult: 1, flat: 0 };
   emit('preDeliver', g, ex, hot);
   const mult = g.mult * (hot ? 2 : 1) * ex.mult;
-  const val = P.cargo * G.price * mult + ex.flat;
+  const val = (P.cargo * G.price * mult + ex.flat) * (G.payMult || 1);
   const info = { hot, cargo: P.cargo, full: P.cargo >= P.cap * 0.95 };
   G.earned += val; G.deliveries++; save.st.deliv++;
   popup(P.x, P.y - 40, '+' + fmtMoney(val), C.magenta, 34);

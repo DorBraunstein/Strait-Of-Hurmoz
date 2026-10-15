@@ -185,6 +185,25 @@ check('missions: three per level, progress, rewards, remembered', async page => 
   assert(await page.evaluate(() => document.getElementById('hMissions').hidden), 'missions should not run in the Daily Strait');
 });
 
+check('legend: full meter doubles pay for 10 seconds', async page => {
+  await page.click('#bPlay'); await sleep(300);
+  assert(await page.evaluate(() => !document.getElementById('hLegendRow').hidden), 'legend bar should show in the HUD');
+  const r = await page.evaluate(async () => {
+    G.cfg.quota = 1e9; G.mines = [];
+    for (let i = 0; i < 10; i++) lgAdd(12);
+    const on = LG.t > 0 && G.payMult === 2 && document.getElementById('hLegendRow').classList.contains('on');
+    const g = GATES[0], P = G.P; P.cargo = 1; const price = G.price;
+    P.x = g.x - 60; P.y = g.y; P.vx = P.vy = 0;
+    await new Promise(r => setTimeout(r, 250));
+    const ratio = G.earned / (price * g.mult * 2);
+    LG.t = 0.05; await new Promise(r => setTimeout(r, 200));
+    return { on, ratio, after: G.payMult };
+  });
+  assert(r.on, 'a full meter should switch Legend mode on');
+  assert(Math.abs(r.ratio - 1) < 0.1, 'deliveries should pay double in Legend mode (ratio ' + r.ratio.toFixed(2) + ')');
+  assert(r.after === 1, 'pay should return to normal after Legend mode');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
