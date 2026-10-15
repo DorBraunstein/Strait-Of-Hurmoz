@@ -174,6 +174,9 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
 .badge{font-size:12px;font-weight:700;padding:2px 8px;border:1px solid var(--ink);background:#FBF6E8}
 .badge.off{opacity:.35;border-style:dashed}
 .title-foot{display:flex;justify-content:flex-end;margin-top:12px}
+.replay{display:grid;gap:6px;margin:0 0 14px}
+.replay canvas{display:block;width:100%;max-width:100%;aspect-ratio:16/7;border:2px solid var(--ink);background:var(--sea)}
+.replay-line{margin:0;font-family:var(--font-display);font-size:clamp(15px,2.4vw,19px);line-height:1.15;color:var(--hull);text-wrap:balance}
 .skins{display:grid;gap:6px;margin-top:18px}
 .skins-k{font-size:12px;font-weight:800;letter-spacing:.16em;color:var(--magenta)}
 .skin-row{display:flex;flex-wrap:wrap;gap:8px}
@@ -359,6 +362,10 @@ kbd{font-family:var(--font-data);font-size:10px;letter-spacing:.04em;padding:0 5
       <div id="pStars" class="stars" aria-label="Stars"></div>
     </div>
     <div class="clipping"><span class="clip-src">The Daily Barrel · late edition</span><p id="pHeadline">Analysts stunned as tanker does its job</p></div>
+    <div id="replayBox" class="replay" hidden>
+      <canvas id="replayCv" aria-label="Slow-motion replay of your closest call"></canvas>
+      <p id="replayLine" class="replay-line"></p>
+    </div>
     <dl id="pLedger" class="ledger"></dl>
     <div class="cash-row"><span>CASH IN THE BANK</span><b id="pCash">$0M</b></div>
     <h3 class="sec">DRY DOCK · UPGRADES</h3>

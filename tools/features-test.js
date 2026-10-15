@@ -123,6 +123,26 @@ check('absurd: lost carrier, seagulls scatter on honk, decoy pulls missiles', as
   assert(await page.evaluate(() => !AB.carrier), 'feature off should not spawn the carrier');
 });
 
+check('replay: a near miss is replayed on the results screen', async page => {
+  await page.click('#bPlay'); await sleep(200);
+  await page.evaluate(async () => {
+    startLevel(5); G.cfg.quota = 1e9; G.mines = [];
+    const P = G.P;
+    G.missiles.push({ x: P.x + 600, y: P.y + 40, a: Math.PI, v: 420, t: 0, fuel: 9, target: null, lost: true, armed: true, min: 1e9, nm: true, trail: [], dead: false });
+    await new Promise(r => setTimeout(r, 1300));
+    nearMiss(P.x + 30, P.y + 20);
+    await new Promise(r => setTimeout(r, 1100));
+    winLevel();
+  });
+  assert(await page.evaluate(() => !!RP.best), 'the near miss should be kept as the best clip');
+  await sleep(2600);
+  const shown = await page.evaluate(() => !document.getElementById('replayBox').hidden && document.getElementById('replayLine').textContent.startsWith('MISSED BY'));
+  assert(shown, 'replay should show on the results screen with a commentator line');
+  await sleep(400);
+  const drawn = await page.evaluate(() => { const c = document.getElementById('replayCv'); const d = c.getContext('2d').getImageData(c.width / 2, c.height / 2, 1, 1).data; return c.width > 100 && d[3] === 255; });
+  assert(drawn, 'replay canvas should be drawn');
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
