@@ -528,7 +528,7 @@ function controls() {
 
 /* ---------- update ---------- */
 const TOP_SPD = { empty: 680, full: 580 };
-const ACCEL = 240, BRAKE = 700, COAST = 60, REVERSE = 0.3, REV_DELAY = 0.35, TURN = 1.55;
+const ACCEL = 240, BRAKE = 700, COAST = 60, REVERSE = 0.55, REV_DELAY = 0.2, TURN = 1.55;
 const SHIP_L = 150, SHIP_W = 27;
 function update(dt) {
   G.t += dt; G.stateT += dt;
@@ -563,7 +563,7 @@ function updatePlayer(dt, frozen) {
   if (c.gas) { p.v += (p.v < 0 ? BRAKE : ACCEL) * dt; p.revHold = 0; }
   else if (c.brake) {
     if (p.v > 0) { p.v = Math.max(0, p.v - BRAKE * dt); p.revHold = 0; }
-    else if ((p.revHold += dt) > REV_DELAY) p.v -= ACCEL * 0.6 * dt;
+    else if ((p.revHold += dt) > REV_DELAY) p.v -= ACCEL * dt;
   } else { p.revHold = 0; p.v = p.v > 0 ? Math.max(0, p.v - COAST * dt) : Math.min(0, p.v + COAST * 2 * dt); }
   p.v = clamp(p.v, -top * REVERSE, top * (p.hull < 35 ? 0.8 : 1));
   // rudder: turns faster with speed, a little even when stopped, and flips when going astern

@@ -15,7 +15,7 @@ No frameworks, no assets: one HTML page with canvas rendering and WebAudio-synth
 A separate, simpler take on the game in `dash/hormuz-dash.html` (one self-contained page).
 
 - The whole Persian Gulf, from Basra and Kuwait to the Arabian Sea, on a scrolling satellite-style chart with a minimap.
-- **W** speeds up; let go and the tanker drifts to a stop. **S** brakes, and holding S once stopped backs up slowly. **A** / **D** turn (arrow keys work too). On a phone, drag up, down or sideways.
+- **W** speeds up; let go and the tanker drifts to a stop. **S** brakes, and holding S once stopped backs up. **A** / **D** turn (arrow keys work too). On a phone, drag up, down or sideways.
 - Load by slowing down inside a terminal ring: Al Basrah (Iraq), Mina al-Ahmadi (Kuwait), Ras Tanura (Saudi Arabia) for crude; Ras Laffan (Qatar) and Das Island (UAE) for LNG. The farther from the Strait, the better the pay.
 - Sell by sailing past 58.9°E into the Arabian Sea. Each sale repairs 30% of the hull.
 - Iran launches from real coastal and inland sites: ballistic missiles (a red circle marks the impact, leave it), cruise missiles (aimed at where you are heading; turn or change speed and they lose you) and drones (slower than you; swerve when one dives). Three tankers per game.
