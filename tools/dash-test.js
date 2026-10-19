@@ -14,7 +14,17 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
     if (shots) await page.screenshot({ path: shots + '/' + name + '-title.png' });
     await page.click('#bPlay');
     await page.waitForTimeout(1800);
-    await page.keyboard.down('ArrowRight'); await page.waitForTimeout(1500); await page.keyboard.up('ArrowRight');
+    await page.keyboard.down('KeyW'); await page.waitForTimeout(1500); await page.keyboard.up('KeyW');
+    // throttle, coast, brake, reverse and rudder
+    const ctl = {};
+    const snap = () => page.evaluate(() => ({ v: Math.round(G.p.v), a: +G.p.a.toFixed(2), gear: document.getElementById('hGear').textContent }));
+    await page.evaluate(() => { G.p.v = 0; G.p.inv = 30; });
+    await page.keyboard.down('KeyW'); await page.waitForTimeout(800); ctl.w08 = await snap(); await page.waitForTimeout(1400); ctl.w22 = await snap(); await page.keyboard.up('KeyW');
+    await page.waitForTimeout(1000); ctl.coast1 = await snap();
+    await page.keyboard.down('KeyD'); await page.waitForTimeout(500); await page.keyboard.up('KeyD'); ctl.turned = await snap();
+    await page.keyboard.down('KeyS'); await page.waitForTimeout(900); ctl.brake = await snap(); await page.waitForTimeout(1500); ctl.reverse = await snap(); await page.keyboard.up('KeyS');
+    await page.waitForTimeout(1500); ctl.revCoast = await snap();
+    out[name + '_controls'] = ctl;
     const r = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
       const res = { moved: Math.round(G.p.x) };

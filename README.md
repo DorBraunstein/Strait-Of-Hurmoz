@@ -15,7 +15,7 @@ No frameworks, no assets: one HTML page with canvas rendering and WebAudio-synth
 A much simpler arcade take on the same idea, in `dash/hormuz-dash.html` (one self-contained page).
 
 - The whole Strait fits on one screen. On small phones the view follows the tanker.
-- You only steer: arrow keys / WASD, hold the mouse, or drag on a phone. The tanker moves on its own.
+- Hold **W** to speed up; let go and the tanker drifts to a stop. **S** brakes, and holding S once stopped backs up slowly. **A** / **D** turn (arrow keys work too). On a phone, drag up, down or sideways.
 - Touch a glowing oil rig or gas platform to load, run out through the Strait and sell on the open sea (right edge). Gas pays 150, oil 100, times the level.
 - Patrol boats chase you, each in its own style. Grab the **escort** star and they flee; ram them for points.
 - Floating barrels give small change. Mines appear from level 3. Sell `2 + level` cargoes to clear a level.

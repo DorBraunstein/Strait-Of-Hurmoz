@@ -39,6 +39,15 @@ button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
 .status.oil{background:var(--amber);color:var(--navy)}
 .status.gas{background:var(--lilac);color:var(--navy)}
 .status.power{background:#fff;color:var(--navy)}
+.speedo{gap:8px}
+.gear{font-weight:800;font-size:11px;letter-spacing:.12em;min-width:52px;text-align:center;padding:3px 6px;border-radius:6px;background:rgba(255,255,255,.12)}
+.gear.ahead{background:#2E9E6A}
+.gear.astern{background:var(--hull)}
+.spd-bar{position:relative;width:70px;height:8px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
+.spd-bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--amber);border-radius:4px}
+.spd-bar i.rev{background:var(--hull)}
+.spd{font-size:13px;font-weight:700;white-space:nowrap}
+.spd b{font-family:var(--font-display);font-weight:400;font-size:16px;font-variant-numeric:tabular-nums;display:inline-block;min-width:34px;text-align:right}
 .lv{font-family:var(--font-display);font-size:16px}
 .pips{display:flex;gap:4px}
 .pips i{width:9px;height:9px;border-radius:50%;border:2px solid rgba(255,255,255,.7)}
@@ -52,6 +61,7 @@ button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
   .bar{padding:6px 8px 6px 10px;gap:6px 10px}
   .score{font-size:18px}
   .status{order:3;flex-basis:100%;text-align:center;font-size:13px}
+  .speedo{order:4;flex-basis:100%;justify-content:center}
   .k.hide-s{display:none}
 }
 
@@ -102,6 +112,7 @@ kbd{font-family:var(--font-ui);font-weight:800;font-size:12px;border:1.5px solid
   <div class="bar">
     <div class="grp"><span class="k">SCORE</span><span id="hScore" class="score">0</span></div>
     <span id="hStatus" class="status">Load oil or gas</span>
+    <div class="grp speedo" aria-label="Speed"><span id="hGear" class="gear">STOP</span><span class="spd-bar"><i id="hSpdBar"></i></span><span class="spd"><b id="hSpd">0.0</b> kn</span></div>
     <div class="grp">
       <span class="k hide-s">LEVEL</span><span id="hLevel" class="lv">1</span>
       <span id="hPips" class="pips" aria-label="Deliveries"></span>
@@ -125,9 +136,11 @@ kbd{font-family:var(--font-ui);font-weight:800;font-size:12px;border:1.5px solid
       <li><svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="#E3F7EA"/><path d="M15 12v21" stroke="#10243A" stroke-width="2.5" stroke-linecap="round"/><path d="M16 13h15l-4 5 4 5H16z" fill="#2E9E6A"/></svg><span><b>Sell</b>Reach the open sea on the right</span></li>
     </ol>
     <div class="keys">
-      <span class="desk"><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> or <kbd>WASD</kbd> to steer</span>
-      <span class="touch">Drag anywhere to steer</span>
-      <span>Your tanker moves on its own</span>
+      <span class="desk"><kbd>W</kbd> speed up</span>
+      <span class="desk"><kbd>S</kbd> brake, keep holding to reverse</span>
+      <span class="desk"><kbd>A</kbd> <kbd>D</kbd> turn</span>
+      <span class="desk">Let go and the tanker slowly drifts to a stop</span>
+      <span class="touch">Drag up to go, down to brake or reverse, sideways to turn</span>
       <span>Grab the <b>escort</b> star to turn the tables</span>
     </div>
     <div class="row">
@@ -410,12 +423,12 @@ function startLevel() {
   for (let i = 0; i < nm; i++) placeMine();
   resetRound();
   G.banner = { title: 'LEVEL ' + L, sub: 'DELIVER ' + G.need + ' CARGOES', t: 0, life: 1.8 };
-  if (L === 1) showHint(isTouch() ? 'Drag anywhere to steer. Head for a glowing <b>oil rig</b>.' : 'Steer with <b>arrow keys</b> or <b>WASD</b>. Head for a glowing <b>oil rig</b>.', 7);
+  if (L === 1) showHint(isTouch() ? 'Drag <b>up</b> to go, <b>down</b> to brake, <b>sideways</b> to turn.' : 'Hold <b>W</b> to go, <b>S</b> to brake, <b>A</b> / <b>D</b> to turn. Head for a glowing <b>oil rig</b>.', 8);
   syncHud(true);
 }
 function resetRound() {
   const [sx, sy] = SPOTS.start;
-  G.p = { x: sx, y: sy, a: -0.25, want: -0.25, v: 0, cargo: null, inv: 2.2, trail: [], trailT: 0 };
+  G.p = { x: sx, y: sy, a: -0.25, v: 0, steer: 0, revHold: 0, cargo: null, inv: 2.2, trail: [], trailT: 0 };
   G.boats = [];
   for (let i = 0; i < G.nBoats; i++) {
     const [hx, hy] = SPOTS.homes[i];
@@ -439,26 +452,25 @@ function placeMine() {
   }
 }
 
-/* ---------- input: you only choose a direction ---------- */
-const Input = { keys: {}, joy: null, mouse: null };
+/* ---------- input: W throttle, S brake then reverse, A/D rudder ---------- */
+const Input = { keys: {}, joy: null };
 const isTouch = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0 && matchMedia('(hover: none)').matches);
-function inputDir() {
+function controls() {
   const k = Input.keys;
-  let dx = 0, dy = 0;
-  if (k.ArrowLeft || k.KeyA) dx -= 1;
-  if (k.ArrowRight || k.KeyD) dx += 1;
-  if (k.ArrowUp || k.KeyW) dy -= 1;
-  if (k.ArrowDown || k.KeyS) dy += 1;
-  if (dx || dy) return Math.atan2(dy, dx);
-  const j = Input.joy;
-  if (j && Math.hypot(j.x - j.ox, j.y - j.oy) > 14) return Math.atan2(j.y - j.oy, j.x - j.ox);
-  const m = Input.mouse;
-  if (m && G) { const [sx, sy] = w2s(G.p.x, G.p.y); if (Math.hypot(m.x - sx, m.y - sy) > 20) return Math.atan2(m.y - sy, m.x - sx); }
-  return null;
+  let gas = !!(k.KeyW || k.ArrowUp), brake = !!(k.KeyS || k.ArrowDown);
+  let steer = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0);
+  const j = Input.joy;   // phone: drag up = W, drag down = S, sideways = rudder
+  if (j) {
+    const dx = j.x - j.ox, dy = j.y - j.oy;
+    if (dy < -18) gas = true; else if (dy > 18) brake = true;
+    if (Math.abs(dx) > 12) steer = clamp(dx / 50, -1, 1);
+  }
+  return { gas, brake, steer };
 }
 
 /* ---------- update ---------- */
 const PLAYER_SPD = { empty: 330, full: 290 };
+const ACCEL = 170, BRAKE = 520, COAST = 55, REVERSE = 0.35, REV_DELAY = 0.35, TURN = 2.3;
 function update(dt) {
   G.t += dt; G.stateT += dt;
   updateFx(dt);
@@ -486,17 +498,24 @@ function update(dt) {
 function updatePlayer(dt) {
   const p = G.p;
   p.inv = Math.max(0, p.inv - dt);
-  const want = inputDir();
-  if (want !== null) p.want = want;
-  p.a += clamp(angDiff(p.a, p.want), -4.2 * dt, 4.2 * dt);
-  const top = p.cargo ? PLAYER_SPD.full : PLAYER_SPD.empty;
-  p.v = Math.min(top, p.v + 520 * dt);
+  const c = controls(), top = p.cargo ? PLAYER_SPD.full : PLAYER_SPD.empty;
+  // throttle: hold W to speed up, let go to drift to a stop, S brakes; keep holding S once stopped to back up
+  if (c.gas) { p.v += (p.v < 0 ? BRAKE : ACCEL) * dt; p.revHold = 0; }
+  else if (c.brake) {
+    if (p.v > 0) { p.v = Math.max(0, p.v - BRAKE * dt); p.revHold = 0; }
+    else if ((p.revHold += dt) > REV_DELAY) p.v -= ACCEL * 0.6 * dt;
+  } else { p.revHold = 0; p.v = p.v > 0 ? Math.max(0, p.v - COAST * dt) : Math.min(0, p.v + COAST * 2 * dt); }
+  p.v = clamp(p.v, -top * REVERSE, top);
+  // rudder: turns faster with speed, a little even when stopped, and flips when going astern
+  p.steer = lerp(p.steer, c.steer, 1 - Math.exp(-8 * dt));
+  const grip = clamp(Math.abs(p.v) / 140, 0.3, 1);
+  p.a += p.steer * TURN * grip * (p.v < -1 ? -1 : 1) * dt;
   const vx = Math.cos(p.a) * p.v * dt, vy = Math.sin(p.a) * p.v * dt;
   // slide along coasts instead of stopping dead
   if (shipFree(p.x + vx, p.y + vy, p.a)) { p.x += vx; p.y += vy; }
   else if (shipFree(p.x + vx, p.y, p.a)) { p.x += vx; p.v *= 0.96; }
   else if (shipFree(p.x, p.y + vy, p.a)) { p.y += vy; p.v *= 0.96; }
-  else { p.v *= 0.5; const [wx, wy] = nearestWater(p.x, p.y, 34); p.x = lerp(p.x, wx, 0.2); p.y = lerp(p.y, wy, 0.2); }
+  else { p.v *= -0.3; const [wx, wy] = nearestWater(p.x, p.y, 34); p.x = lerp(p.x, wx, 0.2); p.y = lerp(p.y, wy, 0.2); }
   p.x = clamp(p.x, 40, WW - 40); p.y = clamp(p.y, 40, WH - 40);
   trail(p, -54 * SC, dt);
 }
@@ -1103,6 +1122,10 @@ function syncHud(force) {
   if (force || HUD.status !== vals.status) { const el = $('hStatus'); el.textContent = status[1]; el.className = 'status' + (status[0] ? ' ' + status[0] : ''); }
   if (force || HUD.pips !== vals.pips) { const el = $('hPips'); el.innerHTML = ''; for (let i = 0; i < G.need; i++) { const d = document.createElement('i'); if (i < G.delivered) d.className = 'on'; el.append(d); } el.setAttribute('aria-label', G.delivered + ' of ' + G.need + ' cargoes sold'); }
   if (force || HUD.lives !== vals.lives) { const el = $('hLives'); el.innerHTML = LIFE_SVG.repeat(Math.max(0, G.lives)); el.setAttribute('aria-label', G.lives + ' tankers left'); }
+  const kn = (Math.abs(p.v) / 20).toFixed(1), gear = p.v > 2 ? 'ahead' : p.v < -2 ? 'astern' : '';
+  if (force || HUD.kn !== kn) { $('hSpd').textContent = kn; const bar = $('hSpdBar'); bar.style.width = (Math.abs(p.v) / PLAYER_SPD.empty * 100).toFixed(0) + '%'; bar.className = p.v < -2 ? 'rev' : ''; }
+  if (force || HUD.gear !== gear) { const el = $('hGear'); el.textContent = gear === 'ahead' ? 'AHEAD' : gear === 'astern' ? 'ASTERN' : 'STOP'; el.className = 'gear' + (gear ? ' ' + gear : ''); }
+  vals.kn = kn; vals.gear = gear;
   Object.assign(HUD, vals);
 }
 let hintT = 0;
@@ -1130,7 +1153,7 @@ function play() {
   hideScreens();
   newGame();
   CAM.x = G.p.x; CAM.y = G.p.y; camera(1);
-  Input.keys = {}; Input.joy = null; Input.mouse = null;
+  Input.keys = {}; Input.joy = null;
 }
 function pause() { if (G && G.state === 'play') { G.paused = true; show('sPause'); setTimeout(() => { try { $('bResume').focus({ preventScroll: true }); } catch (e) { /* optional */ } }, 30); } }
 function resume() { if (G && G.paused) { G.paused = false; hideScreens(); Input.keys = {}; } }
@@ -1158,21 +1181,19 @@ window.addEventListener('keydown', e => {
   Input.keys[c] = true;
 });
 window.addEventListener('keyup', e => { Input.keys[e.code] = false; });
-window.addEventListener('blur', () => { Input.keys = {}; Input.joy = null; Input.mouse = null; });
+window.addEventListener('blur', () => { Input.keys = {}; Input.joy = null; });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   Snd.init();
-  if (e.pointerType === 'mouse') Input.mouse = { x: e.clientX, y: e.clientY };
-  else Input.joy = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY };
+  if (e.pointerType !== 'mouse') Input.joy = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY };
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* optional */ }
   e.preventDefault();
 });
 cv.addEventListener('pointermove', e => {
   if (Input.joy && e.pointerId === Input.joy.id) { Input.joy.x = e.clientX; Input.joy.y = e.clientY; }
-  else if (Input.mouse && e.pointerType === 'mouse') { Input.mouse.x = e.clientX; Input.mouse.y = e.clientY; }
 });
-const endPtr = e => { if (Input.joy && e.pointerId === Input.joy.id) Input.joy = null; if (e.pointerType === 'mouse') Input.mouse = null; };
+const endPtr = e => { if (Input.joy && e.pointerId === Input.joy.id) Input.joy = null; };
 cv.addEventListener('pointerup', endPtr);
 cv.addEventListener('pointercancel', endPtr);
 $('bPlay').addEventListener('click', play);
