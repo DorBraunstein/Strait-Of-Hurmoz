@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Hormuz Dash</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Figtree:wght@500;700;800&display=swap">
+<style>
+/* Layout: the whole Strait fits on one screen like an arcade maze; a slim glass bar on top; cards float over the live chart */
+:root{
+  --navy:#10243A;
+  --navy-2:#3A5068;
+  --paper:#FFF9EE;
+  --sea:#1F8DC0;
+  --amber:#FFB020;
+  --lilac:#A78BFA;
+  --hull:#E5484D;
+  --glass:rgba(12,32,52,.72);
+  --glass-line:rgba(255,255,255,.14);
+  --font-display:"Bungee","Arial Black",Impact,sans-serif;
+  --font-ui:"Figtree","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{margin:0;background:#0F5F96;color:var(--navy);font-family:var(--font-ui);font-size:15px;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+/* ---------- top bar ---------- */
+.hud{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;
+  padding-top:calc(env(safe-area-inset-top,0px) + 10px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;
+  background:var(--glass);color:#fff;border:1px solid var(--glass-line);border-radius:14px;padding:8px 10px 8px 14px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.grp{display:flex;align-items:center;gap:12px;min-width:0}
+.k{font-size:11px;font-weight:800;letter-spacing:.14em;opacity:.7}
+.score{font-family:var(--font-display);font-size:22px;line-height:1;font-variant-numeric:tabular-nums;color:var(--amber)}
+.status{font-weight:800;font-size:14px;letter-spacing:.02em;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.12);white-space:nowrap}
+.status.oil{background:var(--amber);color:var(--navy)}
+.status.gas{background:var(--lilac);color:var(--navy)}
+.status.power{background:#fff;color:var(--navy)}
+.lv{font-family:var(--font-display);font-size:16px}
+.pips{display:flex;gap:4px}
+.pips i{width:9px;height:9px;border-radius:50%;border:2px solid rgba(255,255,255,.7)}
+.pips i.on{background:var(--amber);border-color:var(--amber)}
+.lives{display:flex;gap:3px}
+.lives svg{width:24px;height:12px}
+.icon-btn{pointer-events:auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.1)}
+.icon-btn:hover{background:rgba(255,255,255,.2)}
+.icon-btn svg{width:18px;height:18px}
+@media (max-width:560px){
+  .bar{padding:6px 8px 6px 10px;gap:6px 10px}
+  .score{font-size:18px}
+  .status{order:3;flex-basis:100%;text-align:center;font-size:13px}
+  .k.hide-s{display:none}
+}
+
+/* ---------- hint ---------- */
+.hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:4;pointer-events:none;
+  background:var(--glass);color:#fff;border:1px solid var(--glass-line);border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px;
+  max-width:calc(100% - 32px);text-align:center;transition:opacity .5s}
+.hint b{color:var(--amber)}
+.hint.fade{opacity:0}
+
+/* ---------- cards ---------- */
+.screen{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;overflow-y:auto;touch-action:pan-y;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-bottom,0px) + 16px);
+  background:radial-gradient(ellipse at center,rgba(8,30,50,.25),rgba(8,30,50,.6))}
+.card{margin:auto 0;width:min(560px,100%);background:var(--paper);color:var(--navy);border-radius:22px;padding:26px clamp(18px,4vw,32px) 24px;
+  box-shadow:0 24px 60px rgba(4,20,36,.45),0 0 0 6px rgba(255,255,255,.18);display:grid;gap:16px}
+.eyebrow{font-weight:800;font-size:12px;letter-spacing:.18em;color:var(--sea)}
+.logo{font-family:var(--font-display);font-size:clamp(40px,9vw,64px);line-height:.92;margin:0;letter-spacing:.01em;text-wrap:balance}
+.logo span{color:var(--hull)}
+.lead{margin:0;font-size:17px;line-height:1.45;color:var(--navy-2);max-width:46ch}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.steps li{display:grid;gap:6px;justify-items:center;text-align:center;font-size:14px;line-height:1.3;color:var(--navy-2);background:#fff;border-radius:14px;padding:12px 8px}
+.steps svg{width:44px;height:44px}
+.steps b{display:block;color:var(--navy);font-size:14px}
+.keys{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--navy-2)}
+kbd{font-family:var(--font-ui);font-weight:800;font-size:12px;border:1.5px solid var(--navy-2);border-bottom-width:3px;border-radius:6px;padding:0 6px;color:var(--navy)}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 26px;border-radius:14px;font-family:var(--font-display);font-size:20px;letter-spacing:.02em;
+  background:var(--hull);color:#fff;box-shadow:0 5px 0 #A8303A;transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 #A8303A}
+.btn.ghost{background:transparent;color:var(--navy);box-shadow:none;font-family:var(--font-ui);font-weight:800;font-size:16px;padding:0 12px;text-decoration:underline;text-underline-offset:4px}
+.best{font-size:14px;color:var(--navy-2)}
+.best b{font-family:var(--font-display);color:var(--navy);font-weight:400}
+.big{font-family:var(--font-display);font-size:clamp(34px,8vw,52px);line-height:.95;margin:0}
+.stats{display:flex;flex-wrap:wrap;gap:10px 28px}
+.stat{display:grid;gap:2px}
+.stat b{font-family:var(--font-display);font-size:28px;font-weight:400;font-variant-numeric:tabular-nums}
+@media (max-width:480px){ .steps{grid-template-columns:1fr} .steps li{grid-template-columns:44px 1fr;justify-items:start;text-align:left;align-items:center} }
+@media (hover:none){ .keys .desk{display:none} }
+@media (hover:hover){ .keys .touch{display:none} }
+@media (prefers-reduced-motion:reduce){ .hint{transition:none} }
+</style>
+
+<canvas id="game" aria-label="Map of the Strait of Hormuz with your tanker"></canvas>
+
+<div class="hud" id="hud">
+  <div class="bar">
+    <div class="grp"><span class="k">SCORE</span><span id="hScore" class="score">0</span></div>
+    <span id="hStatus" class="status">Load oil or gas</span>
+    <div class="grp">
+      <span class="k hide-s">LEVEL</span><span id="hLevel" class="lv">1</span>
+      <span id="hPips" class="pips" aria-label="Deliveries"></span>
+      <span id="hLives" class="lives" aria-label="Lives"></span>
+      <button id="bMute" class="icon-btn" type="button" aria-label="Mute sound"></button>
+      <button id="bPause" class="icon-btn" type="button" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<div id="hint" class="hint fade" aria-live="polite"></div>
+
+<section id="sTitle" class="screen" aria-label="Start">
+  <div class="card">
+    <span class="eyebrow">26°34′N · 056°15′E · TANKER RUN</span>
+    <h1 class="logo">HORMUZ <span>DASH</span></h1>
+    <p class="lead">Pick up oil or gas inside the Gulf, slip through the Strait and sell it on the open sea. Then come back for more. Patrol boats will try to stop you.</p>
+    <ol class="steps">
+      <li><svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="#FFF1D0"/><rect x="13" y="12" width="18" height="21" rx="4" fill="#FFB020"/><rect x="13" y="17" width="18" height="2.5" fill="#C98300"/><rect x="13" y="25" width="18" height="2.5" fill="#C98300"/></svg><span><b>Load</b>Touch an oil rig or gas platform</span></li>
+      <li><svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="#DDF1FA"/><path d="M8 22c0-4 2-5 5-5h17c5 0 8 3 8 5s-3 5-8 5H13c-3 0-5-1-5-5z" fill="#E5484D"/><rect x="11" y="18.5" width="6" height="7" rx="1.5" fill="#fff"/><circle cx="23" cy="22" r="2.4" fill="#A78BFA"/><circle cx="29" cy="22" r="2.4" fill="#A78BFA"/></svg><span><b>Run</b>Steer out through the Strait</span></li>
+      <li><svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="#E3F7EA"/><path d="M15 12v21" stroke="#10243A" stroke-width="2.5" stroke-linecap="round"/><path d="M16 13h15l-4 5 4 5H16z" fill="#2E9E6A"/></svg><span><b>Sell</b>Reach the open sea on the right</span></li>
+    </ol>
+    <div class="keys">
+      <span class="desk"><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> or <kbd>WASD</kbd> to steer</span>
+      <span class="touch">Drag anywhere to steer</span>
+      <span>Your tanker moves on its own</span>
+      <span>Grab the <b>escort</b> star to turn the tables</span>
+    </div>
+    <div class="row">
+      <button id="bPlay" class="btn" type="button">SET SAIL</button>
+      <span id="tBest" class="best"></span>
+    </div>
+  </div>
+</section>
+
+<section id="sPause" class="screen" hidden aria-label="Paused">
+  <div class="card">
+    <h2 class="big">PAUSED</h2>
+    <div class="row">
+      <button id="bResume" class="btn" type="button">RESUME</button>
+      <button id="bQuit" class="btn ghost" type="button">Back to start</button>
+    </div>
+  </div>
+</section>
+
+<section id="sOver" class="screen" hidden aria-label="Game over">
+  <div class="card">
+    <span class="eyebrow">ALL TANKERS LOST</span>
+    <h2 class="big">GAME OVER</h2>
+    <div class="stats">
+      <div class="stat"><span class="k">SCORE</span><b id="oScore">0</b></div>
+      <div class="stat"><span class="k">LEVEL</span><b id="oLevel">1</b></div>
+      <div class="stat"><span class="k">CARGOES SOLD</span><b id="oCargo">0</b></div>
+      <div class="stat"><span class="k">BEST</span><b id="oBest">0</b></div>
+    </div>
+    <div class="row">
+      <button id="bAgain" class="btn" type="button">PLAY AGAIN</button>
+      <button id="bHome" class="btn ghost" type="button">Back to start</button>
+    </div>
+  </div>
+</section>
+
+<script>
+'use strict';
+/* =========================================================
+   HORMUZ DASH — a light arcade run through the Strait of Hormuz
+   ========================================================= */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const angDiff = (a, b) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; else if (d < -Math.PI) d += TAU; return d; };
+const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+function mulberry(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function segDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  const t = l2 ? clamp(((px - ax) * dx + (py - ay) * dy) / l2, 0, 1) : 0;
+  return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
+}
+
+/* ---------- chart projection: 1 world unit ≈ 100 m ---------- */
+const LON0 = 54.35, LON1 = 57.95, LAT0 = 24.85, LAT1 = 27.35, KX = 1000, KY = 1110;
+const WW = (LON1 - LON0) * KX, WH = (LAT1 - LAT0) * KY;   // 3600 x 2775
+const P = (lon, lat) => [(lon - LON0) * KX, (LAT1 - lat) * KY];
+
+/* ---------- coastlines (lon, lat), extended past the chart so wide screens show land, not edges ---------- */
+const IRAN = [[52.5, 26.9], [53.5, 26.85], [54.0, 26.80], [54.3, 26.71], [54.45, 26.66], [54.60, 26.60], [54.75, 26.56], [54.88, 26.55], [54.95, 26.58], [55.05, 26.63], [55.15, 26.70], [55.27, 26.79], [55.40, 26.87], [55.58, 26.96], [55.75, 27.03], [55.90, 27.08], [56.05, 27.13], [56.20, 27.17], [56.30, 27.19], [56.45, 27.17], [56.60, 27.14], [56.75, 27.12], [56.88, 27.10], [56.98, 27.02], [57.03, 26.90], [57.04, 26.79], [57.08, 26.65], [57.10, 26.52], [57.14, 26.35], [57.20, 26.15], [57.27, 25.97], [57.35, 25.82], [57.50, 25.72], [57.65, 25.68], [57.75, 25.62], [57.82, 25.66], [57.95, 25.70], [58.10, 25.68], [58.30, 25.64], [59.5, 25.5], [59.5, 28.6], [52.5, 28.6]];
+const ARABIA = [[52.5, 22.5], [52.5, 24.15], [53.4, 24.25], [54.0, 24.42], [54.30, 24.48], [54.45, 24.58], [54.60, 24.72], [54.75, 24.83], [54.90, 24.93], [55.03, 25.01], [55.14, 25.09], [55.25, 25.20], [55.32, 25.28], [55.39, 25.35], [55.46, 25.42], [55.56, 25.53], [55.70, 25.64], [55.83, 25.73], [55.95, 25.80], [56.03, 25.93], [56.08, 26.05], [56.15, 26.13], [56.22, 26.20], [56.28, 26.28], [56.33, 26.36], [56.38, 26.40], [56.44, 26.37], [56.47, 26.28], [56.45, 26.18], [56.48, 26.08], [56.42, 25.98], [56.38, 25.86], [56.34, 25.74], [56.29, 25.63], [56.35, 25.48], [56.36, 25.34], [56.36, 25.12], [56.38, 24.98], [56.47, 24.75], [56.62, 24.52], [56.75, 24.36], [56.95, 24.10], [57.05, 23.9], [57.6, 23.65], [58.6, 23.6], [59.5, 22.9], [59.5, 22.5]];
+const QESHM = [[55.27, 26.62], [55.35, 26.70], [55.50, 26.78], [55.65, 26.84], [55.80, 26.90], [55.95, 26.95], [56.10, 26.99], [56.22, 27.00], [56.29, 26.96], [56.25, 26.90], [56.12, 26.84], [55.98, 26.77], [55.85, 26.71], [55.70, 26.67], [55.55, 26.63], [55.40, 26.59], [55.30, 26.58]];
+const ISLANDS = [['Hormuz', 56.46, 27.06, 40], ['Larak', 56.36, 26.86, 34], ['Hengam', 55.89, 26.64, 26], ['Greater Tunb', 55.30, 26.26, 30], ['Lesser Tunb', 55.14, 26.25, 19], ['Abu Musa', 55.03, 25.88, 36], ['Sirri', 54.53, 25.91, 30], ['Farur', 54.50, 26.29, 24]];
+
+/* ---------- the run: oil and gas inside the Gulf, buyers on the open sea ---------- */
+const SITES = [
+  { kind: 'oil', name: 'FATEH OIL', ll: [54.66, 25.56] },
+  { kind: 'gas', name: 'SOUTH PARS GAS', ll: [54.80, 26.30] },
+  { kind: 'oil', name: 'MUBAREK OIL', ll: [55.22, 25.74] },
+  { kind: 'gas', name: 'BUKHA GAS', ll: [55.82, 26.08] }
+];
+const VALUE = { oil: 100, gas: 150 };
+const EXPORT = { ll: [57.95, 25.22], r: 330 };
+const START_LL = [54.98, 25.95];
+const HOMES_LL = [[56.62, 26.93], [55.48, 26.44], [56.80, 26.28], [55.95, 26.44], [57.25, 25.55], [56.05, 26.70]];
+const PATROL_LL = [[56.25, 26.58], [56.70, 26.55], [56.90, 26.10], [56.55, 26.30]];
+const ROUTE_LL = [[55.15, 25.98], [55.75, 26.30], [56.30, 26.55], [56.75, 26.40], [57.05, 25.90], [57.45, 25.40]];
+const BOAT_COLS = ['#FF4D4D', '#FF79C6', '#2ED3D3', '#FF9F2E', '#9BE15D', '#C58BFF'];
+
+/* ---------- map build: land path, collision grid, coast distance, navigation grid ---------- */
+const CELL = 10, NC = 40;
+const MAP = { path: null, polys: [], gw: 0, gh: 0, grid: null, dist: null, nw: 0, nh: 0, nav: null, glints: [] };
+
+function roughen(pts, rng, levels, amp) {
+  let p = pts;
+  for (let l = 0; l < levels; l++) {
+    const out = [], n = p.length;
+    for (let i = 0; i < n; i++) {
+      const a = p[i], b = p[(i + 1) % n];
+      out.push(a);
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+      if (len < 10 || len > 2500) continue;
+      const off = (rng() - 0.5) * 2 * amp * len;
+      out.push([(a[0] + b[0]) / 2 - dy / len * off, (a[1] + b[1]) / 2 + dx / len * off]);
+    }
+    p = out;
+  }
+  return p;
+}
+function blob(cx, cy, R, rng) {
+  const pts = [];
+  for (let i = 0; i < 11; i++) { const a = i / 11 * TAU, rr = R * (0.8 + rng() * 0.38); pts.push([cx + Math.cos(a) * rr * 1.15, cy + Math.sin(a) * rr * 0.88]); }
+  return pts;
+}
+function buildMap() {
+  const rng = mulberry(20260), conv = poly => poly.map(a => P(a[0], a[1]));
+  const polys = [roughen(conv(IRAN), rng, 3, 0.06), roughen(conv(ARABIA), rng, 3, 0.06), roughen(conv(QESHM), rng, 2, 0.05)];
+  for (const [, lo, la, r] of ISLANDS) { const [x, y] = P(lo, la); polys.push(roughen(blob(x, y, r * 1.2, rng), rng, 2, 0.08)); }
+  MAP.polys = polys;
+  const path = new Path2D();
+  for (const p of polys) { path.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) path.lineTo(p[i][0], p[i][1]); path.closePath(); }
+  MAP.path = path;
+  // collision grid
+  MAP.gw = Math.ceil(WW / CELL); MAP.gh = Math.ceil(WH / CELL);
+  const oc = document.createElement('canvas'); oc.width = MAP.gw; oc.height = MAP.gh;
+  const o = oc.getContext('2d', { willReadFrequently: true });
+  o.scale(1 / CELL, 1 / CELL); o.fillStyle = '#000'; o.fill(path);
+  const px = o.getImageData(0, 0, MAP.gw, MAP.gh).data;
+  MAP.grid = new Uint8Array(MAP.gw * MAP.gh);
+  for (let i = 0; i < MAP.grid.length; i++) MAP.grid[i] = px[i * 4 + 3] > 110 ? 1 : 0;
+  // distance from each water cell to land
+  const { gw, gh, grid } = MAP, n = gw * gh, d = new Uint16Array(n).fill(65535), q = new Int32Array(n);
+  let h = 0, t = 0;
+  for (let i = 0; i < n; i++) if (grid[i]) { d[i] = 0; q[t++] = i; }
+  while (h < t) {
+    const i = q[h++], v = d[i] + 1, x = i % gw;
+    if (x > 0 && d[i - 1] > v) { d[i - 1] = v; q[t++] = i - 1; }
+    if (x < gw - 1 && d[i + 1] > v) { d[i + 1] = v; q[t++] = i + 1; }
+    if (i >= gw && d[i - gw] > v) { d[i - gw] = v; q[t++] = i - gw; }
+    if (i < n - gw && d[i + gw] > v) { d[i + gw] = v; q[t++] = i + gw; }
+  }
+  MAP.dist = d;
+  // navigation grid for the patrol boats
+  MAP.nw = Math.ceil(WW / NC); MAP.nh = Math.ceil(WH / NC);
+  MAP.nav = new Uint8Array(MAP.nw * MAP.nh);
+  for (let j = 0; j < MAP.nh; j++) for (let i = 0; i < MAP.nw; i++) {
+    const cx = (i + 0.5) * NC, cy = (j + 0.5) * NC;
+    MAP.nav[j * MAP.nw + i] = cx > 30 && cy > 30 && cx < WW - 30 && cy < WH - 30 && coastDist(cx, cy) >= 32 ? 1 : 0;
+  }
+  // decoration
+  MAP.glints = [];
+  for (let i = 0; i < 260; i++) { const x = rand(0, WW), y = rand(0, WH); if (coastDist(x, y) > 40) MAP.glints.push({ x, y, p: rand(0, TAU), s: rand(0.7, 1.3) }); }
+}
+function isLand(x, y) {
+  if (x < 0 || y < 0 || x >= WW || y >= WH) return false;
+  return MAP.grid[((y / CELL) | 0) * MAP.gw + ((x / CELL) | 0)] === 1;
+}
+function coastDist(x, y) {
+  const gx = clamp((x / CELL) | 0, 0, MAP.gw - 1), gy = clamp((y / CELL) | 0, 0, MAP.gh - 1);
+  return MAP.dist[gy * MAP.gw + gx] * CELL;
+}
+function openWater(x, y, pad) { return x > 30 && y > 30 && x < WW - 30 && y < WH - 30 && coastDist(x, y) >= pad; }
+function nearestWater(x, y, pad) {
+  if (openWater(x, y, pad)) return [x, y];
+  for (let r = 20; r < 800; r += 20) for (let k = 0; k < 24; k++) {
+    const a = k / 24 * TAU, nx = x + Math.cos(a) * r, ny = y + Math.sin(a) * r;
+    if (openWater(nx, ny, pad)) return [nx, ny];
+  }
+  return [x, y];
+}
+function los(x0, y0, x1, y1, pad) {
+  const L = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(L / 20);
+  for (let i = 0; i <= n; i++) { const t = i / (n || 1); if (coastDist(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t) < pad) return false; }
+  return true;
+}
+
+/* ---------- boat navigation: breadth-first flow fields on the nav grid ---------- */
+const navCell = (x, y) => clamp((y / NC) | 0, 0, MAP.nh - 1) * MAP.nw + clamp((x / NC) | 0, 0, MAP.nw - 1);
+const cellX = i => (i % MAP.nw + 0.5) * NC, cellY = i => (((i / MAP.nw) | 0) + 0.5) * NC;
+function navNear(x, y) {
+  const c = navCell(x, y);
+  if (MAP.nav[c]) return c;
+  const ci = c % MAP.nw, cj = (c / MAP.nw) | 0;
+  for (let r = 1; r < 8; r++) {
+    let best = -1, bd = 1e9;
+    for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) {
+      if (i < 0 || j < 0 || i >= MAP.nw || j >= MAP.nh) continue;
+      const k = j * MAP.nw + i;
+      if (!MAP.nav[k]) continue;
+      const dd = Math.hypot(cellX(k) - x, cellY(k) - y);
+      if (dd < bd) { bd = dd; best = k; }
+    }
+    if (best >= 0) return best;
+  }
+  return -1;
+}
+const NB = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+function flowField(tx, ty, out) {
+  out.fill(-1);
+  const s = navNear(tx, ty);
+  if (s < 0) return out;
+  const q = flowField.q || (flowField.q = new Int32Array(MAP.nw * MAP.nh));
+  let h = 0, t = 0; out[s] = 0; q[t++] = s;
+  while (h < t) {
+    const c = q[h++], ci = c % MAP.nw, cj = (c / MAP.nw) | 0, v = out[c] + 1;
+    for (const [dx, dy] of NB) {
+      const i = ci + dx, j = cj + dy;
+      if (i < 0 || j < 0 || i >= MAP.nw || j >= MAP.nh) continue;
+      const k = j * MAP.nw + i;
+      if (!MAP.nav[k] || out[k] >= 0) continue;
+      if (dx && dy && (!MAP.nav[cj * MAP.nw + i] || !MAP.nav[j * MAP.nw + ci])) continue; // no corner cutting
+      out[k] = v; q[t++] = k;
+    }
+  }
+  return out;
+}
+function stepField(c, field, flee) {
+  const ci = c % MAP.nw, cj = (c / MAP.nw) | 0;
+  let best = -1, bv = field[c] < 0 ? (flee ? -1 : 1e9) : field[c];
+  for (const [dx, dy] of NB) {
+    const i = ci + dx, j = cj + dy;
+    if (i < 0 || j < 0 || i >= MAP.nw || j >= MAP.nh) continue;
+    const k = j * MAP.nw + i, v = field[k];
+    if (v < 0) continue;
+    if (flee ? v > bv : v < bv) { bv = v; best = k; }
+  }
+  return best;
+}
+
+/* ---------- sound: a few synthesized blips ---------- */
+const Snd = {
+  ctx: null, out: null, on: true,
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {}); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    try { this.ctx = new AC(); } catch (e) { return; }
+    this.out = this.ctx.createGain(); this.out.gain.value = this.on ? 0.5 : 0; this.out.connect(this.ctx.destination);
+  },
+  set(on) { this.on = on; if (this.out) this.out.gain.setTargetAtTime(on ? 0.5 : 0, this.ctx.currentTime, 0.03); },
+  tone(f, dur, type, vol, slide, delay) {
+    const c = this.ctx; if (!c || !this.on) return;
+    const t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.out); o.start(t); o.stop(t + dur + 0.03);
+  },
+  flip: false,
+  pop() { this.flip = !this.flip; this.tone(this.flip ? 520 : 690, 0.07, 'triangle', 0.25); },
+  load() { [440, 554, 659].forEach((f, i) => this.tone(f, 0.12, 'triangle', 0.3, null, i * 0.07)); },
+  sell() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.16, 'square', 0.12, null, i * 0.07)); this.tone(1568, 0.35, 'triangle', 0.2, null, 0.3); },
+  power() { this.tone(300, 0.5, 'sawtooth', 0.12, 900); this.tone(450, 0.5, 'triangle', 0.15, 1200, 0.1); },
+  eat() { this.tone(400, 0.18, 'square', 0.12, 1400); },
+  die() { this.tone(700, 0.9, 'sawtooth', 0.14, 60); this.tone(350, 0.9, 'triangle', 0.2, 40, 0.05); },
+  clear() { [523, 659, 784, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.18, 'square', 0.12, null, i * 0.12)); },
+  start() { [392, 523, 659, 784].forEach((f, i) => this.tone(f, 0.14, 'triangle', 0.25, null, i * 0.1)); },
+  life() { [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 0.12, 'triangle', 0.25, null, i * 0.06)); }
+};
+
+/* ---------- state ---------- */
+let G = null;
+const BEST_KEY = 'hormuz-dash-best';
+let best = 0;
+try { best = parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) { best = 0; }
+const SPOTS = {};
+function placeFixed() {
+  SPOTS.start = nearestWater(...P(...START_LL), 90);
+  SPOTS.export = P(...EXPORT.ll);
+  SPOTS.sites = SITES.map(s => { const [x, y] = nearestWater(...P(...s.ll), 70); return { ...s, x, y, cd: 0 }; });
+  SPOTS.homes = HOMES_LL.map(ll => nearestWater(...P(...ll), 60));
+  SPOTS.patrol = PATROL_LL.map(ll => nearestWater(...P(...ll), 60));
+  SPOTS.route = ROUTE_LL.map(ll => nearestWater(...P(...ll), 60));
+}
+
+function newGame() {
+  G = { state: 'ready', t: 0, stateT: 0, level: 1, score: 0, lives: 3, sold: 0, nextLife: 2500, banner: null, attract: false };
+  startLevel();
+}
+function levelNeed(l) { return 2 + l; }
+function startLevel() {
+  const L = G.level;
+  G.need = levelNeed(L); G.delivered = 0;
+  G.boatSpd = Math.min(300, 220 + 12 * L);
+  G.nBoats = Math.min(6, 1 + L);
+  G.mines = [];
+  G.sites = SPOTS.sites.map(s => ({ ...s, cd: 0 }));
+  const nm = L >= 3 ? Math.min(6, L - 2) : 0;
+  for (let i = 0; i < nm; i++) placeMine();
+  resetRound();
+  G.banner = { title: 'LEVEL ' + L, sub: 'DELIVER ' + G.need + ' CARGOES', t: 0, life: 1.8 };
+  if (L === 1) showHint(isTouch() ? 'Drag anywhere to steer. Head for a glowing <b>oil rig</b>.' : 'Steer with <b>arrow keys</b> or <b>WASD</b>. Head for a glowing <b>oil rig</b>.', 7);
+  syncHud(true);
+}
+function resetRound() {
+  const [sx, sy] = SPOTS.start;
+  G.p = { x: sx, y: sy, a: -0.25, want: -0.25, v: 0, cargo: null, inv: 2.2, trail: [], trailT: 0 };
+  G.boats = [];
+  for (let i = 0; i < G.nBoats; i++) {
+    const [hx, hy] = SPOTS.homes[i];
+    G.boats.push({ i, kind: i % 4, col: BOAT_COLS[i], home: [hx, hy], x: hx, y: hy, a: Math.PI, v: 0, wait: 1.2 + i * 2.2, field: new Int16Array(MAP.nw * MAP.nh), fieldT: i * 0.07, pi: 0, fright: false, dead: 0, trail: [], trailT: 0, look: [0, 0] });
+  }
+  G.barrels = []; G.barrelT = 1.5; G.power = null; G.powerT = 14; G.fright = 0; G.eatChain = 0;
+  G.mode = 'scatter'; G.modeT = 5;
+  G.parts = []; G.pops = []; G.shake = 0;
+  G.state = 'ready'; G.stateT = 0;
+}
+function placeMine() {
+  for (let k = 0; k < 80; k++) {
+    const r = pick(SPOTS.route.slice(1, 5)), x = r[0] + rand(-320, 320), y = r[1] + rand(-260, 260);
+    if (!openWater(x, y, 60)) continue;
+    if (Math.hypot(x - SPOTS.start[0], y - SPOTS.start[1]) < 600) continue;
+    if (SPOTS.sites.some(s => Math.hypot(x - s.x, y - s.y) < 220)) continue;
+    if (Math.hypot(x - SPOTS.export[0], y - SPOTS.export[1]) < EXPORT.r + 120) continue;
+    if (G.mines.some(m => Math.hypot(x - m.x, y - m.y) < 260)) continue;
+    G.mines.push({ x, y, ph: rand(0, TAU) });
+    return;
+  }
+}
+
+/* ---------- input: you only choose a direction ---------- */
+const Input = { keys: {}, joy: null, mouse: null };
+const isTouch = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0 && matchMedia('(hover: none)').matches);
+function inputDir() {
+  const k = Input.keys;
+  let dx = 0, dy = 0;
+  if (k.ArrowLeft || k.KeyA) dx -= 1;
+  if (k.ArrowRight || k.KeyD) dx += 1;
+  if (k.ArrowUp || k.KeyW) dy -= 1;
+  if (k.ArrowDown || k.KeyS) dy += 1;
+  if (dx || dy) return Math.atan2(dy, dx);
+  const j = Input.joy;
+  if (j && Math.hypot(j.x - j.ox, j.y - j.oy) > 14) return Math.atan2(j.y - j.oy, j.x - j.ox);
+  const m = Input.mouse;
+  if (m && G) { const [sx, sy] = w2s(G.p.x, G.p.y); if (Math.hypot(m.x - sx, m.y - sy) > 20) return Math.atan2(m.y - sy, m.x - sx); }
+  return null;
+}
+
+/* ---------- update ---------- */
+const PLAYER_SPD = { empty: 330, full: 290 };
+function update(dt) {
+  G.t += dt; G.stateT += dt;
+  updateFx(dt);
+  if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.life) G.banner = null; }
+  if (G.state === 'ready') { if (G.stateT > 1.4) { G.state = 'play'; G.stateT = 0; } return; }
+  if (G.state === 'dying') {
+    if (G.stateT > 1.8) {
+      G.lives--;
+      if (G.lives <= 0) { gameOver(); return; }
+      resetRound(); G.banner = { title: 'READY', sub: G.lives === 1 ? 'LAST TANKER' : G.lives + ' TANKERS LEFT', t: 0, life: 1.4 };
+      syncHud(true);
+    }
+    return;
+  }
+  if (G.state === 'clear') { if (G.stateT > 2.4) { G.level++; startLevel(); } return; }
+  if (G.state !== 'play') return;
+
+  updatePlayer(dt);
+  updateMode(dt);
+  for (const b of G.boats) updateBoat(b, dt);
+  updatePickups(dt);
+  checkHits();
+  syncHud(false);
+}
+function updatePlayer(dt) {
+  const p = G.p;
+  p.inv = Math.max(0, p.inv - dt);
+  const want = inputDir();
+  if (want !== null) p.want = want;
+  p.a += clamp(angDiff(p.a, p.want), -4.2 * dt, 4.2 * dt);
+  const top = p.cargo ? PLAYER_SPD.full : PLAYER_SPD.empty;
+  p.v = Math.min(top, p.v + 520 * dt);
+  const vx = Math.cos(p.a) * p.v * dt, vy = Math.sin(p.a) * p.v * dt;
+  // slide along coasts instead of stopping dead
+  if (shipFree(p.x + vx, p.y + vy, p.a)) { p.x += vx; p.y += vy; }
+  else if (shipFree(p.x + vx, p.y, p.a)) { p.x += vx; p.v *= 0.96; }
+  else if (shipFree(p.x, p.y + vy, p.a)) { p.y += vy; p.v *= 0.96; }
+  else { p.v *= 0.5; const [wx, wy] = nearestWater(p.x, p.y, 34); p.x = lerp(p.x, wx, 0.2); p.y = lerp(p.y, wy, 0.2); }
+  p.x = clamp(p.x, 40, WW - 40); p.y = clamp(p.y, 40, WH - 40);
+  trail(p, -54 * SC, dt);
+}
+function shipFree(x, y, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  for (const k of [-46, 0, 50]) if (coastDist(x + c * k * SC, y + s * k * SC) < 16) return false;
+  return true;
+}
+function trail(o, back, dt) {
+  o.trailT -= dt;
+  if (o.trailT <= 0) { o.trailT = 0.05; o.trail.push({ x: o.x + Math.cos(o.a) * back, y: o.y + Math.sin(o.a) * back, t: G.t }); }
+  while (o.trail.length && G.t - o.trail[0].t > 1.3) o.trail.shift();
+}
+function updateMode(dt) {
+  if (G.fright > 0) {
+    G.fright -= dt;
+    if (G.fright <= 0) { G.fright = 0; for (const b of G.boats) b.fright = false; }
+    return; // the chase/scatter clock pauses while the escort is out
+  }
+  G.modeT -= dt;
+  if (G.modeT <= 0) { G.mode = G.mode === 'scatter' ? 'chase' : 'scatter'; G.modeT = G.mode === 'chase' ? 18 : 5; }
+}
+function boatTarget(b) {
+  const p = G.p;
+  if (G.mode === 'scatter') return b.home;
+  const dp = Math.hypot(p.x - b.x, p.y - b.y);
+  if (b.kind === 0) return [p.x, p.y];                                                        // hunter
+  if (b.kind === 1) return [clamp(p.x + Math.cos(p.a) * 460, 0, WW), clamp(p.y + Math.sin(p.a) * 460, 0, WH)]; // ambusher
+  if (b.kind === 2) {                                                                          // strait guard
+    if (dp < 650) return [p.x, p.y];
+    const pt = SPOTS.patrol[b.pi];
+    if (Math.hypot(pt[0] - b.x, pt[1] - b.y) < 140) b.pi = (b.pi + 1) % SPOTS.patrol.length;
+    return SPOTS.patrol[b.pi];
+  }
+  return dp > 620 ? [p.x, p.y] : b.home;                                                      // shy one
+}
+function updateBoat(b, dt) {
+  const p = G.p;
+  trail(b, -30 * SC, dt);
+  if (b.dead > 0) { b.dead -= dt; if (b.dead <= 0) { b.x = b.home[0]; b.y = b.home[1]; b.fright = false; b.wait = 0.8; } return; }
+  if (b.wait > 0) { b.wait -= dt; b.a += dt * 0.6; return; }
+  const flee = b.fright;
+  b.fieldT -= dt;
+  if (b.fieldT <= 0) {
+    b.fieldT = 0.35;
+    const [tx, ty] = flee ? [p.x, p.y] : boatTarget(b);
+    b.tgt = [tx, ty];
+    flowField(tx, ty, b.field);
+  }
+  let aim;
+  const tg = b.tgt || [p.x, p.y];
+  if (!flee && Math.hypot(tg[0] - b.x, tg[1] - b.y) < 520 && los(b.x, b.y, tg[0], tg[1], 30)) aim = Math.atan2(tg[1] - b.y, tg[0] - b.x);
+  else {
+    const c = navNear(b.x, b.y);
+    if (c < 0) aim = b.a;
+    else {
+      const n1 = stepField(c, b.field, flee), n2 = n1 >= 0 ? stepField(n1, b.field, flee) : -1, n = n2 >= 0 ? n2 : n1 >= 0 ? n1 : c;
+      aim = Math.atan2(cellY(n) - b.y, cellX(n) - b.x);
+    }
+  }
+  // keep a little space between boats
+  let sx = 0, sy = 0;
+  for (const o of G.boats) { if (o === b || o.dead > 0) continue; const dx = b.x - o.x, dy = b.y - o.y, d = Math.hypot(dx, dy); if (d < 90 * SC && d > 1) { sx += dx / d; sy += dy / d; } }
+  if (sx || sy) aim = Math.atan2(Math.sin(aim) + sy * 0.6, Math.cos(aim) + sx * 0.6);
+  b.a += clamp(angDiff(b.a, aim), -4.5 * dt, 4.5 * dt);
+  const spd = G.boatSpd * (flee ? 0.55 : 1);
+  b.v = lerp(b.v, spd, 1 - Math.exp(-3 * dt));
+  const nx = b.x + Math.cos(b.a) * b.v * dt, ny = b.y + Math.sin(b.a) * b.v * dt;
+  if (coastDist(nx, ny) >= 14) { b.x = nx; b.y = ny; }
+  else { const c = navNear(b.x, b.y); if (c >= 0) { b.a = Math.atan2(cellY(c) - b.y, cellX(c) - b.x); b.x = lerp(b.x, cellX(c), 0.1); b.y = lerp(b.y, cellY(c), 0.1); } }
+  b.x = clamp(b.x, 30, WW - 30); b.y = clamp(b.y, 30, WH - 30);
+  // eyes follow the tanker (or flee from it)
+  const ang = Math.atan2(p.y - b.y, p.x - b.x) - b.a;
+  b.look = [Math.cos(ang), Math.sin(ang)];
+}
+function updatePickups(dt) {
+  const p = G.p;
+  // oil rigs and gas platforms
+  for (const s of G.sites) {
+    if (s.cd > 0) { s.cd = Math.max(0, s.cd - dt); continue; }
+    if (!p.cargo && Math.hypot(p.x - s.x, p.y - s.y) < 75 * SC) {
+      p.cargo = s.kind; s.cd = 9;
+      Snd.load();
+      popup(s.x, s.y - 70, s.kind === 'oil' ? 'OIL LOADED' : 'GAS LOADED', s.kind === 'oil' ? '#FFB020' : '#A78BFA');
+      burst(p.x, p.y, s.kind === 'oil' ? '#FFB020' : '#A78BFA', 18);
+      if (G.level === 1 && G.delivered === 0) showHint('Loaded! Now run <b>east through the Strait</b> to the open sea.', 6);
+    }
+  }
+  // sell on the open sea
+  if (p.cargo && Math.hypot(p.x - SPOTS.export[0], p.y - SPOTS.export[1]) < EXPORT.r) {
+    const v = VALUE[p.cargo] * G.level;
+    addScore(v); G.delivered++; G.sold++;
+    popup(p.x, p.y - 70, '+' + v, '#FFFFFF', 1.25);
+    burst(p.x, p.y, p.cargo === 'oil' ? '#FFB020' : '#A78BFA', 30);
+    burst(p.x, p.y, '#FFFFFF', 16);
+    p.cargo = null; Snd.sell();
+    if (G.delivered >= G.need) { levelClear(); return; }
+    if (G.level === 1 && G.delivered === 1) showHint('Sold! Head back into the Gulf for another load.', 5);
+  }
+  // floating barrels: small change, like dots in a maze
+  G.barrelT -= dt;
+  if (G.barrelT <= 0 && G.barrels.length < 7) { G.barrelT = rand(1.2, 2.4); spawnBarrel(); }
+  for (const r of G.barrels) {
+    r.t += dt;
+    if (shipDist(r.x, r.y) < 30 * SC) { r.dead = true; addScore(10); Snd.pop(); popup(r.x, r.y - 24, '+10', '#FFFFFF', 0.8); }
+    else if (r.t > 22) r.dead = true;
+  }
+  G.barrels = G.barrels.filter(r => !r.dead);
+  // escort power-up
+  if (G.power) {
+    G.power.t += dt;
+    if (shipDist(G.power.x, G.power.y) < 36 * SC) {
+      G.power = null; G.powerT = rand(18, 24);
+      G.fright = 7; G.eatChain = 0;
+      for (const b of G.boats) if (b.dead <= 0) { b.fright = true; b.a += Math.PI; b.fieldT = 0; }
+      Snd.power();
+      G.banner = { title: 'ESCORT!', sub: 'RAM THE PATROL BOATS', t: 0, life: 1.4 };
+    } else if (G.power.t > 15) { G.power = null; G.powerT = rand(10, 16); }
+  } else if ((G.powerT -= dt) <= 0) spawnPower();
+}
+function spawnBarrel() {
+  for (let k = 0; k < 30; k++) {
+    const i = Math.floor(Math.random() * (SPOTS.route.length - 1)), a = SPOTS.route[i], b = SPOTS.route[i + 1], u = Math.random();
+    const x = lerp(a[0], b[0], u) + rand(-220, 220), y = lerp(a[1], b[1], u) + rand(-200, 200);
+    if (!openWater(x, y, 50) || Math.hypot(x - G.p.x, y - G.p.y) < 250) continue;
+    if (G.barrels.some(r => Math.hypot(x - r.x, y - r.y) < 140)) continue;
+    G.barrels.push({ x, y, t: 0, ph: rand(0, TAU) });
+    return;
+  }
+}
+function spawnPower() {
+  for (let k = 0; k < 30; k++) {
+    const r = pick(SPOTS.route), x = r[0] + rand(-260, 260), y = r[1] + rand(-220, 220);
+    if (!openWater(x, y, 60) || Math.hypot(x - G.p.x, y - G.p.y) < 450) continue;
+    G.power = { x, y, t: 0 }; return;
+  }
+  G.powerT = 3;
+}
+function shipDist(x, y) {
+  const p = G.p, c = Math.cos(p.a), s = Math.sin(p.a);
+  return segDist(x, y, p.x - c * 46 * SC, p.y - s * 46 * SC, p.x + c * 50 * SC, p.y + s * 50 * SC) - 12 * SC;
+}
+function checkHits() {
+  for (const b of G.boats) {
+    if (b.dead > 0 || b.wait > 0) continue;
+    if (shipDist(b.x, b.y) > 18 * SC) continue;
+    if (b.fright) {
+      b.dead = 4.5; G.eatChain++;
+      const v = 200 * Math.pow(2, Math.min(3, G.eatChain - 1));
+      addScore(v); Snd.eat();
+      popup(b.x, b.y - 30, '+' + v, '#FFFFFF', 1.1);
+      splash(b.x, b.y);
+    } else if (G.p.inv <= 0) { die(); return; }
+  }
+  for (const m of G.mines) if (G.p.inv <= 0 && shipDist(m.x, m.y) < 16 * SC) { die(); return; }
+}
+function addScore(v) {
+  G.score += v;
+  if (G.score >= G.nextLife) { G.nextLife += 2500; if (G.lives < 5) { G.lives++; Snd.life(); popup(G.p.x, G.p.y - 100, 'EXTRA TANKER', '#9BE15D', 1); } }
+}
+function die() {
+  G.state = 'dying'; G.stateT = 0;
+  const p = G.p;
+  Snd.die(); G.shake = REDUCED ? 0 : 14;
+  burst(p.x, p.y, '#FFB020', 30); burst(p.x, p.y, '#FF5A3C', 24); burst(p.x, p.y, '#FFFFFF', 14);
+  G.parts.push({ kind: 'ring', x: p.x, y: p.y, t: 0, life: 0.7, r: 160, col: '255,255,255' });
+  G.banner = { title: p.cargo ? 'CARGO LOST' : 'CAUGHT!', sub: '', t: 0, life: 1.6 };
+  p.cargo = null;
+}
+function levelClear() {
+  G.state = 'clear'; G.stateT = 0;
+  const bonus = 250 * G.level;
+  addScore(bonus);
+  Snd.clear();
+  G.banner = { title: 'LEVEL CLEAR', sub: 'BONUS +' + bonus, t: 0, life: 2.3 };
+  for (let i = 0; i < 5; i++) setTimeout(() => { if (G && G.state === 'clear') burst(G.p.x + rand(-200, 200), G.p.y + rand(-150, 150), pick(['#FFB020', '#A78BFA', '#FF79C6', '#2ED3D3', '#FFFFFF']), 26); }, i * 260);
+  syncHud(true);
+}
+function gameOver() {
+  G.state = 'over';
+  if (G.score > best) { best = G.score; try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* storage unavailable */ } }
+  $('oScore').textContent = G.score.toLocaleString('en-US');
+  $('oLevel').textContent = String(G.level);
+  $('oCargo').textContent = String(G.sold);
+  $('oBest').textContent = best.toLocaleString('en-US');
+  show('sOver');
+  setTimeout(() => { try { $('bAgain').focus({ preventScroll: true }); } catch (e) { /* optional */ } }, 30);
+}
+
+/* ---------- effects ---------- */
+function burst(x, y, col, n) {
+  for (let i = 0; i < n; i++) { const a = rand(0, TAU), s = rand(80, 360); G.parts.push({ kind: 'dot', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0, life: rand(0.5, 1), size: rand(5, 11), col }); }
+}
+function splash(x, y) {
+  burst(x, y, '#FFFFFF', 20);
+  G.parts.push({ kind: 'ring', x, y, t: 0, life: 0.6, r: 90, col: '255,255,255' });
+}
+function popup(x, y, text, col, size) { G.pops.push({ x, y, text, col, size: size || 1, t: 0 }); }
+function updateFx(dt) {
+  for (const q of G.parts) { q.t += dt; if (q.vx !== undefined) { const k = Math.exp(-3 * dt); q.vx *= k; q.vy *= k; q.x += q.vx * dt; q.y += q.vy * dt; } }
+  G.parts = G.parts.filter(q => q.t < q.life);
+  for (const q of G.pops) q.t += dt;
+  G.pops = G.pops.filter(q => q.t < 1.2);
+  G.shake *= Math.exp(-8 * dt);
+}
+
+/* ---------- view: the whole chart fits the screen; small phones follow the tanker ---------- */
+const cv = document.getElementById('game'), ctx = cv.getContext('2d');
+let DPR = 1, VW = 800, VH = 600, S = 0.3, OX = 0, OY = 0, TOP = 70, FIT = true, SC = 1.6; // SC: sprite size, so ships stay readable on any screen
+const CAM = { x: WW / 2, y: WH / 2 };
+const BG = { cv: document.createElement('canvas'), x0: 0, y0: 0, x1: 0, y1: 0 };
+const w2s = (x, y) => [OX + x * S, OY + y * S];
+function resize() {
+  VW = Math.max(300, innerWidth); VH = Math.max(300, innerHeight);
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
+  TOP = $('hud').getBoundingClientRect().bottom + 8;
+  const aw = VW - 24, ah = VH - TOP - 12;
+  const fit = Math.min(aw / WW, ah / WH);
+  S = Math.max(fit, 0.17);
+  FIT = WW * S <= VW && WH * S <= VH - TOP;
+  SC = clamp(0.5 / S, 1.4, 2.4);
+  if (G) { CAM.x = G.p.x; CAM.y = G.p.y; }
+  camera(1);
+  buildBG();
+}
+function camera(k) {
+  const vw = VW / S, vh = (VH - TOP) / S;
+  const tx = vw >= WW ? WW / 2 : clamp(G ? G.p.x : WW / 2, vw / 2, WW - vw / 2);
+  const ty = vh >= WH ? WH / 2 : clamp(G ? G.p.y : WH / 2, vh / 2, WH - vh / 2);
+  CAM.x = lerp(CAM.x, tx, k); CAM.y = lerp(CAM.y, ty, k);
+  OX = VW / 2 - CAM.x * S; OY = TOP + (VH - TOP) / 2 - CAM.y * S;
+}
+function buildBG() {
+  // the background covers everything the camera can show
+  const vw = VW / S, vh = VH / S;
+  const x0 = vw >= WW ? -OX / S - 10 : -60, x1 = vw >= WW ? (VW - OX) / S + 10 : WW + 60;
+  const y0 = Math.min(-60, -OY / S - 10), y1 = Math.max(WH + 60, (VH - OY) / S + 10);
+  Object.assign(BG, { x0, y0, x1, y1 });
+  const k = S * DPR, c = BG.cv;
+  c.width = Math.ceil((x1 - x0) * k); c.height = Math.ceil((y1 - y0) * k);
+  const g = c.getContext('2d');
+  g.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
+  // open sea: lighter, shallower Gulf in the west, deep blue Gulf of Oman in the east
+  const sea = g.createLinearGradient(0, 0, WW, WH);
+  sea.addColorStop(0, '#46BCD9'); sea.addColorStop(0.45, '#2697C6'); sea.addColorStop(1, '#0F639B');
+  g.fillStyle = sea; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+  // shallow water bands along every coast
+  g.lineJoin = 'round';
+  const band = (w, col, blur) => { g.save(); if ('filter' in g) g.filter = 'blur(' + (blur * k).toFixed(1) + 'px)'; g.strokeStyle = col; g.lineWidth = w; g.stroke(MAP.path); g.restore(); };
+  band(260, 'rgba(120,225,235,.20)', 40);
+  band(130, 'rgba(150,235,240,.30)', 22);
+  band(54, 'rgba(200,248,245,.45)', 10);
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 6; g.stroke(MAP.path);
+  // land with soft relief
+  const sand = g.createLinearGradient(0, 0, 0, WH);
+  sand.addColorStop(0, '#EBCB8B'); sand.addColorStop(1, '#F3DCA4');
+  g.fillStyle = sand; g.fill(MAP.path);
+  g.save(); g.clip(MAP.path);
+  if ('filter' in g) g.filter = 'blur(' + (14 * k).toFixed(1) + 'px)';
+  g.strokeStyle = 'rgba(176,122,52,.38)'; g.lineWidth = 46; g.stroke(MAP.path);
+  g.restore();
+  g.strokeStyle = 'rgba(120,82,36,.55)'; g.lineWidth = 3.2; g.stroke(MAP.path);
+  // names
+  const text = (t, ll, size, col, opt) => {
+    const [x, y] = P(...ll); opt = opt || {};
+    g.save(); g.translate(x, y); if (opt.r) g.rotate(opt.r);
+    g.font = (opt.font || '800 ' + size + 'px "Figtree", system-ui, sans-serif');
+    if ('letterSpacing' in g) g.letterSpacing = (size * (opt.sp == null ? 0.3 : opt.sp)).toFixed(1) + 'px';
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = col; g.fillText(t, 0, 0);
+    g.restore();
+  };
+  const landCol = 'rgba(122,84,34,.42)', seaCol = 'rgba(255,255,255,.55)';
+  text('IRAN', [55.15, 27.12], 70, landCol);
+  text('IRAN', [57.55, 26.72], 56, landCol);
+  text('UNITED ARAB EMIRATES', [55.55, 25.06], 34, landCol, { sp: 0.22 });
+  text('MUSANDAM', [56.22, 25.98], 22, landCol, { sp: 0.2 });
+  text('(OMAN)', [56.22, 25.93], 18, landCol, { sp: 0.2 });
+  text('QESHM', [55.8, 26.84], 22, landCol, { sp: 0.25 });
+  text('PERSIAN GULF', [54.95, 25.33], 48, seaCol, { sp: 0.25 });
+  text('STRAIT OF HORMUZ', [56.72, 26.66], 34, seaCol, { r: -0.42, sp: 0.2 });
+  text('GULF OF OMAN', [57.15, 24.98], 46, seaCol, { r: -0.35, sp: 0.25 });
+  for (const [name, lo, la, side] of [['Bandar Abbas', 56.27, 27.19, 'n'], ['Dubai', 55.30, 25.24, 's'], ['Khasab', 56.24, 26.19, 'w'], ['Jask', 57.77, 25.66, 'n'], ['Fujairah', 56.35, 25.12, 'w']]) {
+    const [x, y] = P(lo, la);
+    g.fillStyle = '#5B4423'; g.beginPath(); g.arc(x, y, 7, 0, TAU); g.fill();
+    g.strokeStyle = '#FFF4DA'; g.lineWidth = 3; g.stroke();
+    g.font = '700 24px "Figtree", system-ui, sans-serif'; g.fillStyle = 'rgba(91,68,35,.8)'; if ('letterSpacing' in g) g.letterSpacing = '0px';
+    g.textBaseline = 'middle';
+    if (side === 'n') { g.textAlign = 'center'; g.fillText(name, x, y - 26); }
+    else if (side === 's') { g.textAlign = 'center'; g.fillText(name, x, y + 26); }
+    else { g.textAlign = 'right'; g.fillText(name, x - 16, y); }
+  }
+}
+
+/* ---------- drawing ---------- */
+function render() {
+  if (G.state === 'play' || G.state === 'ready') camera(FIT ? 1 : 0.12);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#0F5F96'; ctx.fillRect(0, 0, VW, VH);
+  let sx = 0, sy = 0;
+  if (G.shake > 0.5) { sx = rand(-G.shake, G.shake); sy = rand(-G.shake, G.shake); }
+  ctx.drawImage(BG.cv, OX + BG.x0 * S + sx, OY + BG.y0 * S + sy, (BG.x1 - BG.x0) * S, (BG.y1 - BG.y0) * S);
+  ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * (OX + sx), DPR * (OY + sy));
+  drawGlints();
+  drawExport();
+  for (const s of G.sites) drawSite(s);
+  for (const r of G.barrels) drawBarrel(r);
+  for (const m of G.mines) drawMine(m);
+  if (G.power) drawPower(G.power);
+  for (const b of G.boats) drawWake(b.trail, 9, 0.5);
+  if (!(G.state === 'dying' && G.stateT > 0.15)) drawWake(G.p.trail, 14, 0.7);
+  for (const b of G.boats) drawBoat(b);
+  drawPlayer();
+  drawGuide();
+  drawParts();
+  drawPops();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawJoy();
+  drawBanner();
+}
+function drawGlints() {
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (const w of MAP.glints) {
+    const k = Math.sin(w.p + G.t * 1.2);
+    if (k < 0.35) continue;
+    const l = 14 * k * w.s;
+    ctx.moveTo(w.x - l, w.y); ctx.quadraticCurveTo(w.x, w.y - 6 * k, w.x + l, w.y);
+  }
+  ctx.stroke();
+}
+function drawExport() {
+  const [x, y] = SPOTS.export, r = EXPORT.r, on = !!G.p.cargo, t = G.t;
+  const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+  const a = on ? 0.42 + 0.12 * Math.sin(t * 4) : 0.22;
+  g.addColorStop(0, 'rgba(255,255,255,' + a.toFixed(3) + ')'); g.addColorStop(0.7, 'rgba(180,255,220,' + (a * 0.55).toFixed(3) + ')'); g.addColorStop(1, 'rgba(180,255,220,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  // flowing chevrons point the way out
+  ctx.fillStyle = 'rgba(255,255,255,' + (on ? 0.85 : 0.45) + ')';
+  for (let i = 0; i < 3; i++) {
+    const u = ((t * 0.6 + i / 3) % 1), cx = x - r * 0.75 + u * r * 0.55, al = Math.sin(u * Math.PI);
+    ctx.globalAlpha = al;
+    ctx.beginPath(); ctx.moveTo(cx + 22, y); ctx.lineTo(cx - 6, y - 26); ctx.lineTo(cx - 18, y - 26); ctx.lineTo(cx + 10, y); ctx.lineTo(cx - 18, y + 26); ctx.lineTo(cx - 6, y + 26); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  label('OPEN SEA', x - r * 0.42, y - 92, 30, '#FFFFFF');
+  label('SELL HERE', x - r * 0.42, y + 92, 22, on ? '#FFFFFF' : 'rgba(255,255,255,.75)');
+}
+function label(t, x, y, size, col) {
+  const fs = Math.max(size, 12 / S);
+  ctx.font = '800 ' + fs.toFixed(0) + 'px "Figtree", system-ui, sans-serif';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = (fs * 0.14).toFixed(1) + 'px';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round'; ctx.lineWidth = fs * 0.28; ctx.strokeStyle = 'rgba(12,40,64,.55)'; ctx.strokeText(t, x, y);
+  ctx.fillStyle = col; ctx.fillText(t, x, y);
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+}
+function drawSite(s) {
+  const t = G.t, ready = s.cd <= 0, want = ready && !G.p.cargo, col = s.kind === 'oil' ? '#FFB020' : '#A78BFA';
+  ctx.save(); ctx.translate(s.x, s.y); ctx.scale(SC * 0.8, SC * 0.8);
+  if (want) {
+    const r = 110 + Math.sin(t * 4) * 8, g = ctx.createRadialGradient(0, 0, 30, 0, 0, r);
+    g.addColorStop(0, col + '88'); g.addColorStop(1, col + '00');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = ready ? 1 : 0.45;
+  ctx.fillStyle = 'rgba(6,40,70,.25)'; ctx.beginPath(); ctx.ellipse(8, 10, 44, 40, 0, 0, TAU); ctx.fill();
+  if (s.kind === 'oil') {
+    ctx.fillStyle = '#F5C542'; for (const [a, b] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) { ctx.beginPath(); ctx.arc(a, b, 8, 0, TAU); ctx.fill(); }
+    roundRect(-36, -36, 72, 72, 10); ctx.fillStyle = '#E8EEF2'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#5E7385'; ctx.stroke();
+    ctx.fillStyle = '#C9D4DC'; roundRect(-28, -28, 30, 30, 5); ctx.fill();
+    ctx.strokeStyle = '#2E9E6A'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(-13, -13, 9, 0, TAU); ctx.stroke();
+    ctx.fillStyle = '#5E7385'; ctx.beginPath(); ctx.moveTo(8, 30); ctx.lineTo(20, -6); ctx.lineTo(32, 30); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#5E7385'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(30, -30); ctx.lineTo(50, -50); ctx.stroke();
+    if (ready) {
+      const f = 1 + Math.sin(t * 15) * 0.15 + Math.sin(t * 6.7) * 0.1;
+      ctx.fillStyle = '#FF8A1E'; ctx.beginPath(); ctx.ellipse(54, -56, 10 * f, 16 * f, -0.8, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#FFE08A'; ctx.beginPath(); ctx.ellipse(53, -54, 5 * f, 8 * f, -0.8, 0, TAU); ctx.fill();
+    }
+  } else {
+    ctx.fillStyle = '#E8EEF2'; ctx.beginPath(); ctx.arc(0, 0, 40, 0, TAU); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#5E7385'; ctx.stroke();
+    for (const [a, b] of [[-14, -12], [16, -10], [0, 16]]) {
+      ctx.fillStyle = '#A78BFA'; ctx.beginPath(); ctx.arc(a, b, 13, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(a - 4, b - 4, 4.5, 0, TAU); ctx.fill();
+    }
+  }
+  if (!ready) {
+    ctx.globalAlpha = 1; ctx.strokeStyle = col; ctx.lineWidth = 7; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, 0, 58, -Math.PI / 2, -Math.PI / 2 + (1 - s.cd / 9) * TAU); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.globalAlpha = ready ? 1 : 0.6;
+  label(s.name, s.x, s.y + 62 * SC, 20, s.kind === 'oil' ? '#FFE3A3' : '#E3D8FF');
+  ctx.globalAlpha = 1;
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function drawBarrel(r) {
+  const fade = r.t > 19 ? Math.max(0, (22 - r.t) / 3) : Math.min(1, r.t * 3), bob = Math.sin(G.t * 3 + r.ph) * 3;
+  ctx.save(); ctx.globalAlpha = fade; ctx.translate(r.x, r.y + bob); ctx.scale(SC, SC);
+  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 4, 24, 12, 0, 0, TAU); ctx.stroke();
+  ctx.fillStyle = '#FF8A1E'; ctx.beginPath(); ctx.arc(0, 0, 15, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#B85A00'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 10, 0, TAU); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(-5, -5, 4, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+function drawMine(m) {
+  const bob = Math.sin(G.t * 2 + m.ph) * 3, blink = Math.sin(G.t * 6 + m.ph) > 0.3;
+  ctx.save(); ctx.translate(m.x, m.y + bob); ctx.scale(SC, SC);
+  ctx.fillStyle = 'rgba(6,40,70,.25)'; ctx.beginPath(); ctx.ellipse(6, 8, 24, 20, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#2B3440'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath();
+  for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + 0.2; ctx.moveTo(Math.cos(a) * 14, Math.sin(a) * 14); ctx.lineTo(Math.cos(a) * 27, Math.sin(a) * 27); }
+  ctx.stroke();
+  ctx.fillStyle = '#36414E'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.beginPath(); ctx.arc(-6, -6, 6, 0, TAU); ctx.fill();
+  ctx.fillStyle = blink ? '#FF3B30' : '#7A1E18'; ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+function drawPower(pw) {
+  const t = G.t, blink = pw.t > 12 && Math.floor(pw.t * 6) % 2 === 0;
+  if (blink) return;
+  ctx.save(); ctx.translate(pw.x, pw.y); ctx.scale(SC, SC);
+  const r = 46 + Math.sin(t * 5) * 6;
+  const g = ctx.createRadialGradient(0, 0, 10, 0, 0, r * 1.6);
+  g.addColorStop(0, 'rgba(255,255,255,.75)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 1.6, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#1D3A8A'; ctx.beginPath(); ctx.arc(0, 0, 26, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 4; ctx.stroke();
+  ctx.rotate(t * 1.5);
+  ctx.fillStyle = '#FFC93C'; ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const rr = i % 2 ? 7 : 17, a = i / 10 * TAU - Math.PI / 2; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  label('ESCORT', pw.x, pw.y + 52 * SC, 18, '#FFFFFF');
+}
+function drawWake(tr, w0, alpha) {
+  if (tr.length < 2) return;
+  ctx.lineCap = 'round';
+  for (let i = 1; i < tr.length; i++) {
+    const a = tr[i - 1], b = tr[i], age = G.t - a.t, k = 1 - age / 1.3;
+    if (k <= 0) continue;
+    ctx.strokeStyle = 'rgba(255,255,255,' + (alpha * k).toFixed(3) + ')';
+    ctx.lineWidth = (w0 + age * 26) * SC;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+}
+function tankerPath(L, W) {
+  const h = L / 2, w = W / 2;
+  ctx.beginPath(); ctx.moveTo(-h + 8, -w); ctx.lineTo(h * 0.42, -w);
+  ctx.quadraticCurveTo(h * 0.95, -w * 0.92, h, 0); ctx.quadraticCurveTo(h * 0.95, w * 0.92, h * 0.42, w);
+  ctx.lineTo(-h + 8, w); ctx.quadraticCurveTo(-h, w, -h, w - 8); ctx.lineTo(-h, -w + 8); ctx.quadraticCurveTo(-h, -w, -h + 8, -w); ctx.closePath();
+}
+function drawTanker(x, y, a, cargo) {
+  const L = 110, W = 34;
+  ctx.save(); ctx.translate(x, y); ctx.scale(SC, SC); ctx.rotate(a);
+  ctx.save(); ctx.translate(6, 9); tankerPath(L, W); ctx.fillStyle = 'rgba(6,40,70,.28)'; ctx.fill(); ctx.restore();
+  tankerPath(L, W); ctx.fillStyle = '#E5484D'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#A8303A'; ctx.stroke();
+  ctx.save(); ctx.scale(0.86, 0.7); tankerPath(L, W); ctx.fillStyle = cargo === 'oil' ? '#3B3631' : '#F4EEE2'; ctx.fill(); ctx.restore();
+  if (cargo === 'oil') {
+    ctx.fillStyle = '#FFB020';
+    for (let i = 0; i < 4; i++) { roundRect(-18 + i * 15, -6, 10, 12, 3); ctx.fill(); }
+  } else if (cargo === 'gas') {
+    for (let i = 0; i < 4; i++) {
+      const cx = -16 + i * 15;
+      ctx.fillStyle = '#A78BFA'; ctx.beginPath(); ctx.arc(cx, 0, 8.5, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.65)'; ctx.beginPath(); ctx.arc(cx - 3, -3, 2.8, 0, TAU); ctx.fill();
+    }
+  } else {
+    ctx.strokeStyle = '#B9B2A4'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(40, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(10, -9); ctx.lineTo(10, 9); ctx.stroke();
+  }
+  ctx.fillStyle = '#FFFFFF'; roundRect(-L / 2 + 5, -12, 20, 24, 4); ctx.fill();
+  ctx.fillStyle = '#10243A'; ctx.fillRect(-L / 2 + 19, -10, 3.5, 20);
+  ctx.fillStyle = '#E5484D'; ctx.beginPath(); ctx.arc(-L / 2 + 12, 0, 4, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+function drawPlayer() {
+  const p = G.p;
+  if (G.state === 'dying') {
+    if (G.stateT > 0.15) return;
+  }
+  if (p.inv > 0 && G.state === 'play' && Math.floor(p.inv * 8) % 2 === 0) { ctx.save(); ctx.globalAlpha = 0.45; drawTanker(p.x, p.y, p.a, p.cargo); ctx.restore(); return; }
+  if (G.fright > 0) {
+    const g = ctx.createRadialGradient(p.x, p.y, 20, p.x, p.y, 110 * SC);
+    g.addColorStop(0, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 110 * SC, 0, TAU); ctx.fill();
+  }
+  drawTanker(p.x, p.y, p.a, p.cargo);
+}
+function boatPath(L, W) {
+  const h = L / 2, w = W / 2;
+  ctx.beginPath(); ctx.moveTo(h, 0);
+  ctx.quadraticCurveTo(h * 0.35, -w * 1.1, -h * 0.6, -w); ctx.quadraticCurveTo(-h, -w, -h, -w * 0.55);
+  ctx.lineTo(-h, w * 0.55); ctx.quadraticCurveTo(-h, w, -h * 0.6, w); ctx.quadraticCurveTo(h * 0.35, w * 1.1, h, 0); ctx.closePath();
+}
+function drawBoat(b) {
+  if (b.dead > 0) return;
+  const L = 74, W = 34, scared = b.fright, ending = scared && G.fright < 2 && Math.floor(G.fright * 6) % 2 === 0;
+  const col = scared ? (ending ? '#FFFFFF' : '#2D47B8') : b.col;
+  ctx.save(); ctx.translate(b.x, b.y); ctx.scale(SC, SC);
+  if (b.wait > 0) ctx.globalAlpha = 0.7;
+  ctx.rotate(b.a);
+  ctx.save(); ctx.translate(5, 8); boatPath(L, W); ctx.fillStyle = 'rgba(6,40,70,.28)'; ctx.fill(); ctx.restore();
+  boatPath(L, W); ctx.fillStyle = col; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(16,36,58,.55)'; ctx.stroke();
+  ctx.save(); ctx.scale(0.72, 0.6); boatPath(L, W); ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fill(); ctx.restore();
+  ctx.fillStyle = 'rgba(16,36,58,.75)'; roundRect(-22, -9, 10, 18, 3); ctx.fill();
+  // eyes
+  if (scared) {
+    ctx.fillStyle = ending ? '#2D47B8' : '#FFFFFF';
+    ctx.beginPath(); ctx.arc(10, -7, 3.5, 0, TAU); ctx.arc(10, 7, 3.5, 0, TAU); ctx.fill();
+    ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 2.5; ctx.beginPath();
+    for (let i = 0; i <= 4; i++) ctx.lineTo(-4 + (i % 2) * 4, -8 + i * 4);
+    ctx.stroke();
+  } else {
+    const [lx, ly] = b.look;
+    for (const ey of [-8, 8]) {
+      ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.ellipse(8, ey, 8, 7, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#10243A'; ctx.beginPath(); ctx.arc(8 + lx * 3.5, ey + ly * 3, 3.8, 0, TAU); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+function drawGuide() {
+  if (G.state !== 'play') return;
+  const p = G.p;
+  let tx, ty;
+  if (p.cargo) [tx, ty] = SPOTS.export;
+  else {
+    let bd = 1e9;
+    for (const s of G.sites) if (s.cd <= 0) { const d = Math.hypot(s.x - p.x, s.y - p.y); if (d < bd) { bd = d; tx = s.x; ty = s.y; } }
+    if (tx === undefined) return;
+  }
+  const d = Math.hypot(tx - p.x, ty - p.y);
+  if (d < 260) return;
+  const a = Math.atan2(ty - p.y, tx - p.x), r = 80 * SC;
+  ctx.save(); ctx.translate(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r); ctx.scale(SC, SC); ctx.rotate(a);
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = p.cargo ? '#FFFFFF' : '#FFE3A3';
+  ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-8, -13); ctx.lineTo(-3, 0); ctx.lineTo(-8, 13); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawParts() {
+  for (const q of G.parts) {
+    const k = q.t / q.life;
+    if (q.kind === 'ring') {
+      ctx.strokeStyle = 'rgba(' + q.col + ',' + (1 - k).toFixed(3) + ')'; ctx.lineWidth = 10 * (1 - k);
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.r * (0.2 + k), 0, TAU); ctx.stroke();
+    } else {
+      ctx.globalAlpha = 1 - k; ctx.fillStyle = q.col;
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.size * (1 - k * 0.5), 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+function drawPops() {
+  for (const q of G.pops) {
+    const k = q.t / 1.2, fs = Math.max(30 * q.size, 15 * q.size / S) * (1 + Math.max(0, 1 - q.t / 0.12) * 0.4);
+    ctx.save(); ctx.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
+    ctx.font = fs.toFixed(0) + 'px "Bungee", "Arial Black", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = fs * 0.22; ctx.strokeStyle = 'rgba(12,36,58,.7)';
+    const y = q.y - q.t * 60;
+    ctx.strokeText(q.text, q.x, y); ctx.fillStyle = q.col; ctx.fillText(q.text, q.x, y);
+    ctx.restore();
+  }
+}
+function drawJoy() {
+  const j = Input.joy;
+  if (!j) return;
+  ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(j.ox, j.oy, 50, 0, TAU); ctx.stroke();
+  const dx = j.x - j.ox, dy = j.y - j.oy, l = Math.hypot(dx, dy), k = l > 50 ? 50 / l : 1;
+  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(j.ox + dx * k, j.oy + dy * k, 20, 0, TAU); ctx.fill();
+}
+function drawBanner() {
+  const b = G.banner;
+  if (!b || G.attract) return;
+  const k = b.t / b.life, pop = b.t < 0.15 ? 1 + (1 - b.t / 0.15) * 0.35 : 1, a = k > 0.8 ? (1 - k) / 0.2 : 1;
+  const big = clamp(VW * 0.08, 34, 72);
+  ctx.save(); ctx.globalAlpha = clamp(a, 0, 1);
+  ctx.translate(VW / 2, TOP + (VH - TOP) * 0.36); ctx.scale(pop, pop);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.font = big.toFixed(0) + 'px "Bungee", "Arial Black", sans-serif';
+  ctx.lineWidth = big * 0.2; ctx.strokeStyle = '#10243A'; ctx.strokeText(b.title, 0, 0);
+  ctx.fillStyle = '#FFFFFF'; ctx.fillText(b.title, 0, 0);
+  if (b.sub) {
+    const fs = clamp(big * 0.32, 14, 22);
+    ctx.font = '800 ' + fs.toFixed(0) + 'px "Figtree", system-ui, sans-serif';
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '3px';
+    ctx.lineWidth = fs * 0.4; ctx.strokeText(b.sub, 0, big * 0.78);
+    ctx.fillStyle = '#FFB020'; ctx.fillText(b.sub, 0, big * 0.78);
+  }
+  ctx.restore();
+}
+
+/* ---------- HUD ---------- */
+const $ = id => document.getElementById(id);
+const HUD = {};
+const LIFE_SVG = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M1 6c0-3 1.5-4 4-4h12c3.5 0 6 2 6 4s-2.5 4-6 4H5C2.5 10 1 9 1 6z" fill="#E5484D"/><rect x="3" y="3.5" width="4" height="5" rx="1" fill="#fff"/></svg>';
+function syncHud(force) {
+  const p = G.p;
+  const status = G.fright > 0 ? ['power', 'Escort! Ram the boats · ' + Math.ceil(G.fright) + 's'] : p.cargo === 'oil' ? ['oil', 'Oil on board · sell on the open sea'] : p.cargo === 'gas' ? ['gas', 'Gas on board · sell on the open sea'] : ['', 'Empty · load oil or gas'];
+  const vals = { score: G.score.toLocaleString('en-US'), level: String(G.level), status: status.join('|'), pips: G.delivered + '/' + G.need, lives: String(G.lives) };
+  if (force || HUD.score !== vals.score) $('hScore').textContent = vals.score;
+  if (force || HUD.level !== vals.level) $('hLevel').textContent = vals.level;
+  if (force || HUD.status !== vals.status) { const el = $('hStatus'); el.textContent = status[1]; el.className = 'status' + (status[0] ? ' ' + status[0] : ''); }
+  if (force || HUD.pips !== vals.pips) { const el = $('hPips'); el.innerHTML = ''; for (let i = 0; i < G.need; i++) { const d = document.createElement('i'); if (i < G.delivered) d.className = 'on'; el.append(d); } el.setAttribute('aria-label', G.delivered + ' of ' + G.need + ' cargoes sold'); }
+  if (force || HUD.lives !== vals.lives) { const el = $('hLives'); el.innerHTML = LIFE_SVG.repeat(Math.max(0, G.lives)); el.setAttribute('aria-label', G.lives + ' tankers left'); }
+  Object.assign(HUD, vals);
+}
+let hintT = 0;
+function showHint(html, secs) { const h = $('hint'); h.innerHTML = html; h.classList.remove('fade'); hintT = secs; }
+function syncMute() {
+  $('bMute').innerHTML = Snd.on
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.5 6c3 3.2 3 8.8 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  $('bMute').setAttribute('aria-label', Snd.on ? 'Mute sound' : 'Turn sound on');
+}
+
+/* ---------- screens and flow ---------- */
+function show(id) { for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id; }
+function hideScreens() { for (const s of document.querySelectorAll('.screen')) s.hidden = true; }
+function attract() {
+  newGame(); G.attract = true; G.state = 'attract'; G.banner = null;
+  for (const b of G.boats) b.wait = 0;
+  $('hint').classList.add('fade'); hintT = 0;
+  $('tBest').innerHTML = best ? 'Best score <b>' + best.toLocaleString('en-US') + '</b>' : '';
+  show('sTitle');
+  setTimeout(() => { try { $('bPlay').focus({ preventScroll: true }); } catch (e) { /* optional */ } }, 30);
+}
+function play() {
+  Snd.init(); Snd.start();
+  hideScreens();
+  newGame();
+  CAM.x = G.p.x; CAM.y = G.p.y; camera(1);
+  Input.keys = {}; Input.joy = null; Input.mouse = null;
+}
+function pause() { if (G && G.state === 'play') { G.paused = true; show('sPause'); setTimeout(() => { try { $('bResume').focus({ preventScroll: true }); } catch (e) { /* optional */ } }, 30); } }
+function resume() { if (G && G.paused) { G.paused = false; hideScreens(); Input.keys = {}; } }
+const titleOpen = () => !$('sTitle').hidden, overOpen = () => !$('sOver').hidden, pauseOpen = () => !$('sPause').hidden;
+
+/* attract mode: boats idle around the Strait behind the title card */
+function updateAttract(dt) {
+  G.t += dt;
+  for (const b of G.boats) {
+    b.a += dt * (0.25 + b.i * 0.05);
+    const [hx, hy] = b.home; b.x = hx + Math.cos(b.a - Math.PI / 2) * 60; b.y = hy + Math.sin(b.a - Math.PI / 2) * 60;
+    trail(b, -30 * SC, dt); b.look = [1, 0];
+  }
+  const p = G.p; p.a = -0.25 + Math.sin(G.t * 0.4) * 0.2;
+}
+
+/* ---------- input wiring ---------- */
+window.addEventListener('keydown', e => {
+  const c = e.code;
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(c) && e.target.tagName !== 'BUTTON') e.preventDefault();
+  if (c === 'KeyM') { Snd.init(); Snd.set(!Snd.on); syncMute(); return; }
+  if (titleOpen() || overOpen()) { if ((c === 'Enter' || c === 'Space') && e.target.tagName !== 'BUTTON') play(); return; }
+  if (pauseOpen()) { if (c === 'Escape' || c === 'KeyP' || c === 'Enter') resume(); return; }
+  if (c === 'Escape' || c === 'KeyP') { pause(); return; }
+  Input.keys[c] = true;
+});
+window.addEventListener('keyup', e => { Input.keys[e.code] = false; });
+window.addEventListener('blur', () => { Input.keys = {}; Input.joy = null; Input.mouse = null; });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  Snd.init();
+  if (e.pointerType === 'mouse') Input.mouse = { x: e.clientX, y: e.clientY };
+  else Input.joy = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY };
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { /* optional */ }
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => {
+  if (Input.joy && e.pointerId === Input.joy.id) { Input.joy.x = e.clientX; Input.joy.y = e.clientY; }
+  else if (Input.mouse && e.pointerType === 'mouse') { Input.mouse.x = e.clientX; Input.mouse.y = e.clientY; }
+});
+const endPtr = e => { if (Input.joy && e.pointerId === Input.joy.id) Input.joy = null; if (e.pointerType === 'mouse') Input.mouse = null; };
+cv.addEventListener('pointerup', endPtr);
+cv.addEventListener('pointercancel', endPtr);
+$('bPlay').addEventListener('click', play);
+$('bAgain').addEventListener('click', play);
+$('bHome').addEventListener('click', attract);
+$('bQuit').addEventListener('click', attract);
+$('bResume').addEventListener('click', resume);
+$('bPause').addEventListener('click', () => { if (G && G.state === 'play' && !G.paused) pause(); else if (G && G.paused) resume(); });
+$('bMute').addEventListener('click', () => { Snd.init(); Snd.set(!Snd.on); syncMute(); });
+window.addEventListener('resize', resize);
+
+/* ---------- main loop ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+  try {
+    if (G) {
+      if (G.attract) { updateAttract(dt); updateFx(dt); }
+      else if (!G.paused && G.state !== 'over') update(dt);
+      render();
+      if (hintT > 0) { hintT -= dt; if (hintT <= 0) $('hint').classList.add('fade'); }
+    }
+  } catch (err) { console.error(err); }
+  requestAnimationFrame(frame);
+}
+function boot() {
+  buildMap();
+  placeFixed();
+  syncMute();
+  attract();
+  resize();
+  syncHud(true);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { buildBG(); }).catch(() => {});
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body></html>

@@ -11,6 +11,17 @@ No frameworks, no assets: one HTML page with canvas rendering and WebAudio-synth
 - Live version: published as a claude.ai Artifact.
 - Locally: run `./build.sh`, then open `dist/index.html` in a browser.
 
+## Hormuz Dash (light version)
+A much simpler arcade take on the same idea, in `dash/hormuz-dash.html` (one self-contained page).
+
+- The whole Strait fits on one screen. On small phones the view follows the tanker.
+- You only steer: arrow keys / WASD, hold the mouse, or drag on a phone. The tanker moves on its own.
+- Touch a glowing oil rig or gas platform to load, run out through the Strait and sell on the open sea (right edge). Gas pays 150, oil 100, times the level.
+- Patrol boats chase you, each in its own style. Grab the **escort** star and they flee; ram them for points.
+- Floating barrels give small change. Mines appear from level 3. Sell `2 + level` cargoes to clear a level.
+
+Build with `./build.sh` (writes `dist/dash.html` for local play) and test with `node tools/dash-test.js "$PWD"`.
+
 ## Controls
 | Action | Keyboard / mouse | Phone |
 | --- | --- | --- |
