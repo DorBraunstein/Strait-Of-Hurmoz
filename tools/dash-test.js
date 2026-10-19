@@ -1,4 +1,4 @@
-// Drives dist/dash.html in headless Chromium: plays the loop (load, sell, escort, caught) and prints any errors.
+// Drives dist/dash.html in headless Chromium: controls, loading, selling, each threat, sinking, game over.
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 (async () => {
   const dir = process.argv[2], shots = process.argv[3];
@@ -9,53 +9,68 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
     const errs = [];
     page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
     page.on('pageerror', e => errs.push(e.message));
+    const t0 = Date.now();
     await page.goto('file://' + dir + '/dist/dash.html');
-    await page.waitForTimeout(900);
+    await page.waitForFunction(() => typeof G !== 'undefined' && G && G.attract, null, { timeout: 60000 });
+    const bootMs = Date.now() - t0;
+    await page.waitForTimeout(800);
     if (shots) await page.screenshot({ path: shots + '/' + name + '-title.png' });
     await page.click('#bPlay');
-    await page.waitForTimeout(1800);
-    await page.keyboard.down('KeyW'); await page.waitForTimeout(1500); await page.keyboard.up('KeyW');
-    // throttle, coast, brake, reverse and rudder
+    await page.waitForTimeout(1500);
+    // controls
+    const snap = () => page.evaluate(() => ({ v: Math.round(G.p.v), gear: document.getElementById('hGear').textContent }));
     const ctl = {};
-    const snap = () => page.evaluate(() => ({ v: Math.round(G.p.v), a: +G.p.a.toFixed(2), gear: document.getElementById('hGear').textContent }));
-    await page.evaluate(() => { G.p.v = 0; G.p.inv = 30; });
-    await page.keyboard.down('KeyW'); await page.waitForTimeout(800); ctl.w08 = await snap(); await page.waitForTimeout(1400); ctl.w22 = await snap(); await page.keyboard.up('KeyW');
-    await page.waitForTimeout(1000); ctl.coast1 = await snap();
-    await page.keyboard.down('KeyD'); await page.waitForTimeout(500); await page.keyboard.up('KeyD'); ctl.turned = await snap();
-    await page.keyboard.down('KeyS'); await page.waitForTimeout(900); ctl.brake = await snap(); await page.waitForTimeout(1500); ctl.reverse = await snap(); await page.keyboard.up('KeyS');
-    await page.waitForTimeout(1500); ctl.revCoast = await snap();
-    out[name + '_controls'] = ctl;
+    await page.keyboard.down('KeyW'); await page.waitForTimeout(2500); ctl.w = await snap(); await page.keyboard.up('KeyW');
+    await page.waitForTimeout(800); ctl.coast = await snap();
+    await page.keyboard.down('KeyS'); await page.waitForTimeout(2200); ctl.reverse = await snap(); await page.keyboard.up('KeyS');
+    if (shots) await page.screenshot({ path: shots + '/' + name + '-start.png' });
     const r = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
-      const res = { moved: Math.round(G.p.x) };
-      // load at the first site
-      const s = G.sites[0]; G.p.x = s.x; G.p.y = s.y; G.p.inv = 5; await wait(200); res.cargo = G.p.cargo;
-      // sell on the open sea
-      G.p.x = SPOTS.export[0] - 100; G.p.y = SPOTS.export[1]; await wait(200); res.delivered = G.delivered; res.score = G.score;
-      // escort and ram a boat
-      spawnPower(); G.p.x = G.power.x; G.p.y = G.power.y; await wait(200); res.fright = G.fright > 0;
-      const b = G.boats[0]; b.wait = 0; b.x = G.p.x + 10; b.y = G.p.y; await wait(200); res.eaten = b.dead > 0;
-      // caught when the escort ends
-      G.fright = 0.01; await wait(100); G.p.inv = 0; const b2 = G.boats[1]; b2.wait = 0; b2.dead = 0; b2.x = G.p.x; b2.y = G.p.y; await wait(150); res.died = G.state;
-      await wait(2200); res.lives = G.lives;
-      // boats find their way around the coast
-      res.boatPos = G.boats.map(b => Math.round(b.x) + ',' + Math.round(b.y) + (isLand(b.x, b.y) ? ' LAND' : ''));
+      const res = { terminals: SPOTS.terminals.map(t => t.short + ' ' + fmtM(t.pay) + (isLand(t.x, t.y) ? ' ON LAND' : '') + (t.anchor || t.offshore ? '' : ' NO ANCHOR')) };
+      // load at Ras Tanura
+      const t = SPOTS.terminals[2]; G.p.x = t.x; G.p.y = t.y; G.p.v = 0; G.p.inv = 99; await wait(3000); res.cargo = G.p.cargo && G.p.cargo.kind;
+      // sell
+      G.p.x = SELL_X + 200; G.p.y = P(0, 24.5)[1]; await wait(300); res.cash = G.cash; res.sold = G.sold;
+      // each threat near the strait
+      const [sx, sy] = SPOTS.strait; G.p.x = sx; G.p.y = sy + 150; G.p.a = 0; G.p.v = 0; G.p.inv = 0; G.p.hull = 100;
+      res.launched = ['cruise', 'drone', 'ball'].map(k => k + ':' + launch(k));
+      await wait(200); res.threats = G.threats.map(m => m.k);
+      await wait(7000); res.hullAfterSitting = Math.round(G.p.hull);
       return res;
     });
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(300);
     if (shots) await page.screenshot({ path: shots + '/' + name + '-play.png' });
-    // level clear + game over paths
-    const r2 = await page.evaluate(async () => {
+    // dodge a cruise missile by turning hard at full speed
+    const dodge = {};
+    for (const how of ['KeyA', 'KeyD', 'KeyS', 'none']) dodge[how] = await page.evaluate(async how => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
-      G.delivered = G.need - 1; G.p.cargo = 'gas'; G.p.x = SPOTS.export[0] - 100; G.p.y = SPOTS.export[1]; await wait(200);
-      const st = G.state; await wait(2800);
-      const lvl = G.level, boats = G.boats.length, mines = G.mines.length;
-      G.level = 4; startLevel(); await wait(1600);
-      const mines4 = G.mines.length;
-      G.lives = 1; G.p.inv = 0; G.state = 'play'; die(); await wait(2200);
-      return { clear: st, level: lvl, boats, mines, mines4, over: !document.getElementById('sOver').hidden };
+      let dodged = 0, hit = 0, lastLost = false; const why = [];
+      for (let n = 0; n < 4; n++) { lastLost = false;
+        G.threats = []; G.state = 'play';
+        [G.p.x, G.p.y] = P(53.9, 25.55); G.p.a = 0; G.p.v = 650; G.p.hull = 100; G.p.inv = 0; G.dirT = 999;
+        const s = SPOTS.sites.find(q => q.n === 'Kish');
+        const tti = Math.hypot(G.p.x - s.x, G.p.y - s.y) / 780, ix = G.p.x + 650 * tti, iy = G.p.y;
+        G.threats.push({ k: 'cruise', x: s.x, y: s.y, a: Math.atan2(iy - s.y, ix - s.x), v: 420, t: 0, fuel: 8, lost: false, trail: [], trailT: 0, site: s.n });
+        let turned = false;
+        for (let i = 0; i < 100; i++) {
+          await wait(50);
+          const m = G.threats[0]; if (!m) break; lastLost = m.lost;
+          if (how !== 'KeyS') G.p.v = Math.max(G.p.v, how === 'none' ? 650 : 0);
+          if (!turned && Math.hypot(m.x - G.p.x, m.y - G.p.y) < 1100) { turned = true; if (how !== 'none') Input.keys[how] = true; }
+        }
+        Input.keys[how] = false;
+        if (G.p.hull < 100) hit++; else dodged++;
+        why.push(G.p.hull < 100 ? 'hit' : lastLost ? 'lost' : 'other');
+      }
+      return { dodged, hit, why: why.join(',') };
+    }, how);
+    // sink + game over
+    const end = await page.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      G.threats = []; G.lives = 1; G.state = 'play'; G.p.inv = 0; hurt(200, 'test'); await wait(3200);
+      return { over: !document.getElementById('sOver').hidden };
     });
-    out[name] = { ...r, ...r2, errs };
+    out[name] = { bootMs, ctl, ...r, dodge, ...end, errs };
     await page.close();
   }
   console.log(JSON.stringify(out, null, 1));

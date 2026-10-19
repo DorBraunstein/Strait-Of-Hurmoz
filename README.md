@@ -11,14 +11,14 @@ No frameworks, no assets: one HTML page with canvas rendering and WebAudio-synth
 - Live version: published as a claude.ai Artifact.
 - Locally: run `./build.sh`, then open `dist/index.html` in a browser.
 
-## Hormuz Dash (light version)
-A much simpler arcade take on the same idea, in `dash/hormuz-dash.html` (one self-contained page).
+## Hormuz Dash
+A separate, simpler take on the game in `dash/hormuz-dash.html` (one self-contained page).
 
-- The whole Strait fits on one screen. On small phones the view follows the tanker.
-- Hold **W** to speed up; let go and the tanker drifts to a stop. **S** brakes, and holding S once stopped backs up slowly. **A** / **D** turn (arrow keys work too). On a phone, drag up, down or sideways.
-- Touch a glowing oil rig or gas platform to load, run out through the Strait and sell on the open sea (right edge). Gas pays 150, oil 100, times the level.
-- Patrol boats chase you, each in its own style. Grab the **escort** star and they flee; ram them for points.
-- Floating barrels give small change. Mines appear from level 3. Sell `2 + level` cargoes to clear a level.
+- The whole Persian Gulf, from Basra and Kuwait to the Arabian Sea, on a scrolling satellite-style chart with a minimap.
+- **W** speeds up; let go and the tanker drifts to a stop. **S** brakes, and holding S once stopped backs up slowly. **A** / **D** turn (arrow keys work too). On a phone, drag up, down or sideways.
+- Load by slowing down inside a terminal ring: Al Basrah (Iraq), Mina al-Ahmadi (Kuwait), Ras Tanura (Saudi Arabia) for crude; Ras Laffan (Qatar) and Das Island (UAE) for LNG. The farther from the Strait, the better the pay.
+- Sell by sailing past 58.9°E into the Arabian Sea. Each sale repairs 30% of the hull.
+- Iran launches from real coastal and inland sites: ballistic missiles (a red circle marks the impact, leave it), cruise missiles (aimed at where you are heading; turn or change speed and they lose you) and drones (slower than you; swerve when one dives). Three tankers per game.
 
 Build with `./build.sh` (writes `dist/dash.html` for local play) and test with `node tools/dash-test.js "$PWD"`.
 
