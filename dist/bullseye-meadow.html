@@ -48,6 +48,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .quiver span.s7,.quiver span.s8{background:var(--red);border-color:var(--red)}
 .quiver span.s5,.quiver span.s6{background:var(--blue);border-color:var(--blue)}
 .score-chip{padding:6px 18px 8px;text-align:center}
+.bestline{font-weight:700;font-size:12px;color:var(--gold);white-space:nowrap;margin-top:2px;font-variant-numeric:tabular-nums}
 .center{display:flex;flex-direction:column;align-items:center;gap:6px}
 .modes{display:flex;gap:2px;padding:3px;border-radius:12px}
 .modes button{pointer-events:auto;font-weight:700;font-size:13px;padding:5px 11px;border-radius:9px;color:#fff;opacity:.8}
@@ -190,7 +191,7 @@ h2{font-size:clamp(34px,7vw,52px)}
     <div class="quiver" id="hQuiver"><span></span><span></span><span></span></div>
   </div>
   <div class="center">
-    <div class="chip score-chip"><div class="k" id="hScoreK">Score</div><div class="num" id="hScore">0</div></div>
+    <div class="chip score-chip"><div class="k" id="hScoreK">Score</div><div class="num" id="hScore">0</div><div class="bestline" id="hBest" hidden></div></div>
     <div class="chip modes" role="group" aria-label="Game mode"><button id="mContest" aria-pressed="true">Contest</button><button id="mPractice" aria-pressed="false">Practice</button></div>
   </div>
   <div class="right">
@@ -1418,11 +1419,15 @@ function updateHud() {
     const n = G.prac.length, avg = n ? G.prac.reduce((a, r) => a + r.s, 0) / n : 0;
     $('hScoreK').textContent = n ? n + (n === 1 ? ' arrow · avg' : ' arrows · avg') : 'Average';
     $('hScore').textContent = n ? avg.toFixed(1) : '–';
+    $('hBest').hidden = true;
     syncPractice();
   } else {
     $('hEnd').innerHTML = 'End <b>' + (G.end + 1) + '</b><span class="of"> of 4</span> · ' + G.D + ' m';
     $('hScoreK').textContent = 'Score';
     $('hScore').textContent = G.total;
+    const best = store.get('best', null);
+    $('hBest').textContent = best != null ? 'Best ' + best : '';
+    $('hBest').hidden = best == null;
   }
   $('practiceBar').hidden = G.mode !== 'practice';
   $('mContest').setAttribute('aria-pressed', String(G.mode !== 'practice'));
