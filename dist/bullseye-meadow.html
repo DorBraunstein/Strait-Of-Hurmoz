@@ -964,11 +964,10 @@ function fire(p) {
   const speed = 22 + 48 * p;
   const a = makeArrow(); a.position.copy(tip); a.lookAt(tip.clone().add(dir)); scene.add(a);
   a.add(tipGlow); tipGlow.visible = true;
-  G.releaseQ = camera.quaternion.clone();
   G.flight = { a, pos: tip.clone(), vel: dir.multiplyScalar(speed), t: 0, p };
   trail.pts = [tip.clone()]; trail.l.visible = true;
   G.state = 'flight'; G.stT = 0; G.ts = 0.55; G.draw = 0;
-  nockedArrow.visible = false; guide.p.visible = false; setString(0);
+  nockedArrow.visible = false; guide.p.visible = false;
   Snd.twang(p); setTimeout(() => Snd.whoosh(), 60);
   setHint('');
 }
@@ -1066,9 +1065,13 @@ function updateCamera(dt, t) {
     const fov = lerp(restFov(G.D), fullFov(G.D), ease(G.draw));
     G.fov = lerp(G.fov, fov, Math.min(1, dt * 8));
   } else if (st === 'flight') {
-    // stay in the archer's eyes and zoom back out, so the target returns to its real distance
-    camera.position.copy(EYE_POS); camera.quaternion.copy(G.releaseQ);
-    G.fov = lerp(G.fov, 50, Math.min(1, dt * 3));
+    // ride behind the arrow with a wide lens: the aiming zoom is dropped at release,
+    // so the target looks as far away as it really is
+    const F = G.flight, d = F.vel.clone().normalize();
+    const want = tmpV2.copy(F.pos).addScaledVector(d, -0.95); want.y += 0.13; want.x += 0.11;
+    if (G.stT < 0.05) camera.position.copy(want); else camera.position.lerp(want, 1 - Math.exp(-dt * 14));
+    camera.lookAt(tmpV.copy(F.pos).addScaledVector(d, 4));
+    G.fov = 58;
   } else if (st === 'hitcam') {
     const H = G.hit;
     let want, look;
@@ -1365,7 +1368,7 @@ function frame(now) {
   Snd.ambient(rdt, G.wind.s);
   renderer.clear();
   renderer.render(scene, camera);
-  if (G.state === 'aim' || G.state === 'flight') {
+  if (G.state === 'aim') {
     // light the bow from the same sun, seen from where you are looking
     vmSun.position.copy(SUN_DIR).applyQuaternion(tmpQ.copy(camera.quaternion).invert()).multiplyScalar(5);
     const shake = G.sway * 6;
