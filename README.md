@@ -32,7 +32,7 @@ A separate 3D archery game in `bullseye-meadow/bullseye-meadow.html` (one self-c
 - **Pull:** hold the mouse button, the screen or Space. A weak pull is slow and drops low; a full pull flies flat. Arms always sway a little, more as you pull, and a lot if you hold a full pull too long.
 - **Wind:** blows one of eight ways (sideways, up, down or diagonal), gusts between arrows, and moves arrows both ways; a compass arrow shows it.
 - After every arrow the bow is lowered: each one starts pointing down below the target and has to be raised and aimed again.
-- **Crowd:** stands on both sides and behind the target in the contest, small groups in practice; they watch you and the arrow, clap for 7s and 8s and cheer for 9s and 10s.
+- **Crowd:** stands on both sides and behind the target in the contest, small groups in practice; they watch you and the arrow, clap for 7s and 8s, cheer for 9s and 10s and hold their heads after a bad miss.
 
 Build with `./build.sh` (writes `dist/bullseye-meadow.html`) and test with `node tools/bullseye-meadow-test.js "$PWD" path/to/three.min.js`, using a local three.js r128 (`npm pack three@0.128.0`) since the test runs without the CDN.
 
