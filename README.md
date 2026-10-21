@@ -24,7 +24,7 @@ A separate, simpler take on the game in `dash/hormuz-dash.html` (one self-contai
 Build with `./build.sh` (writes `dist/dash.html` for local play) and test with `node tools/dash-test.js "$PWD"`.
 
 ## Bullseye Meadow
-A separate 3D archery game in `bullseye-meadow/bullseye-meadow.html` (one self-contained page; three.js r128 from cdnjs). A golden-hour meadow range with one target, bunting and flags; on release the camera pulls back so you see the arrow fly the real distance.
+A separate 3D archery game in `bullseye-meadow/bullseye-meadow.html` (one self-contained page; three.js r128 from cdnjs). A golden-hour meadow range with one target, bunting and flags; on release the view zooms back out from your own eyes so you see the arrow fly the real distance.
 
 - **Contest:** 4 ends of 3 arrows at 15, 25 and 40 m and then 60 m. Standard rings (10 in the gold down to 1, X for the inner 10); 120 is perfect, 95+ gold, 75+ silver, 50+ bronze.
 - **Practice range:** unlimited arrows at 10-70 m, wind off, light or strong, set from a panel that folds down to one line. The aim stays where you left it between shots.
