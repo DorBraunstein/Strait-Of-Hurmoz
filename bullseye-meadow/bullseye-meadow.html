@@ -739,10 +739,13 @@ function spawnBurst(at, dir, color) {
     burst.vel[i * 3] = (rnd() - 0.5) * 2.4 - dir.x * 0.6; burst.vel[i * 3 + 1] = rnd() * 2.4; burst.vel[i * 3 + 2] = -dir.z * (0.4 + rnd() * 1.2) + (rnd() - 0.5);
   }
 }
+// a small glow at the arrow's tip, the same size on screen however far it flies
+const tipGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: col('#FFE08A'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: false }));
+tipGlow.scale.set(0.035, 0.035, 1); tipGlow.visible = false;
 // arrow trail
 const trail = (() => {
   const N = 40, g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
-  const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col('#FFF6D8'), transparent: true, opacity: 0.55 }));
+  const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col('#FFF3C4'), transparent: true, opacity: 0.9 }));
   l.frustumCulled = false; l.visible = false; scene.add(l); return { l, N, pts: [] };
 })();
 
@@ -958,6 +961,7 @@ function fire(p) {
   const dir = aimPt.sub(tip).normalize();
   const speed = 22 + 48 * p;
   const a = makeArrow(); a.position.copy(tip); a.lookAt(tip.clone().add(dir)); scene.add(a);
+  a.add(tipGlow); tipGlow.visible = true;
   G.flight = { a, pos: tip.clone(), vel: dir.multiplyScalar(speed), t: 0, p };
   trail.pts = [tip.clone()]; trail.l.visible = true;
   G.state = 'flight'; G.stT = 0; G.ts = 0.55; G.draw = 0;
@@ -1006,6 +1010,7 @@ function land(kind, at, T, lx, ly, r) {
     F.a.position.copy(at).addScaledVector(dir, 0.18); F.a.lookAt(tmpV.copy(F.a.position).add(dir)); groundArrows.push(F.a);
     spawnBurst(at, dir, '#7A5A36'); Snd.thud();
   } else { scene.remove(F.a); }
+  tipGlow.visible = false;
   res.at = at; res.dir = dir;
   G.hit = res;
   if (G.mode === 'practice') {
@@ -1041,6 +1046,8 @@ function swayAt(t, amp) {
   return [amp * (Math.sin(t * 0.7) * 0.8 + Math.sin(t * 1.9 + 1) * 0.5 + Math.sin(t * 4.3 + 2) * 0.25 + Math.sin(t * 9.7) * 0.12),
     amp * (Math.sin(t * 0.6 + 3) * 0.7 + Math.sin(t * 2.3) * 0.45 + Math.sin(t * 5.1 + 1) * 0.25 + Math.sin(t * 11.3 + 2) * 0.12) + 0.003 * Math.sin(t * 1.4)];
 }
+const FLIGHT_CAM = new THREE.Vector3(0.5, 0.45, 2.4);
+const lookDummy = new THREE.Camera();
 function updateCamera(dt, t) {
   const st = G.state;
   if (st === 'title') {
@@ -1058,11 +1065,13 @@ function updateCamera(dt, t) {
     const fov = lerp(restFov(G.D), fullFov(G.D), ease(G.draw));
     G.fov = lerp(G.fov, fov, Math.min(1, dt * 8));
   } else if (st === 'flight') {
-    const F = G.flight, d = F.vel.clone().normalize();
-    const want = tmpV2.copy(F.pos).addScaledVector(d, -0.95); want.y += 0.13; want.x += 0.11;
-    if (G.stT < 0.05) camera.position.copy(want); else camera.position.lerp(want, 1 - Math.exp(-dt * 14));
-    camera.lookAt(tmpV.copy(F.pos).addScaledVector(d, 4));
-    G.fov = lerp(G.fov, 46, Math.min(1, dt * 4));
+    // pull back behind the archer and zoom out, so you see how far the arrow has to go
+    const F = G.flight, k = 1 - Math.exp(-dt * 5);
+    camera.position.lerp(tmpV2.copy(EYE_POS).add(FLIGHT_CAM), k);
+    const look = mainTarget.face.getWorldPosition(tmpV).lerp(F.pos, F.pos.z > -2 ? 0.6 : 0.35);
+    lookDummy.position.copy(camera.position); lookDummy.lookAt(look);
+    camera.quaternion.slerp(lookDummy.quaternion, k);
+    G.fov = lerp(G.fov, 52, Math.min(1, dt * 3.5));
   } else if (st === 'hitcam') {
     const H = G.hit;
     let want, look;
