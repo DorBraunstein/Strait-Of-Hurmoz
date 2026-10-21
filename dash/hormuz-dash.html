@@ -46,6 +46,8 @@ button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
 .meter.hull.low i{background:var(--alert)}
 .meter.spd i{background:#fff}
 .meter.spd i.rev{background:var(--alert)}
+.clock{font-family:var(--font-display);font-weight:800;font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.clock.low{color:var(--alert)}
 .num{font-family:var(--font-display);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums;min-width:38px;text-align:right}
 .gear{font-family:var(--font-display);font-weight:800;font-size:12px;letter-spacing:.12em;min-width:56px;text-align:center;padding:3px 6px;border-radius:6px;background:rgba(255,255,255,.12)}
 .gear.ahead{background:var(--ok)}
@@ -117,7 +119,7 @@ kbd{font-family:var(--font-ui);font-weight:700;font-size:12px;border:1.5px solid
 
 <div class="hud" id="hud">
   <div class="bar">
-    <div class="grp"><span class="k">CASH</span><span id="hCash" class="cash">$0.0M</span></div>
+    <div class="grp"><span class="k">CASH</span><span id="hCash" class="cash">$0.0M</span><span class="k">TIME</span><span id="hTime" class="clock">5:00</span></div>
     <span id="hStatus" class="status">Empty · load at an oil or gas terminal</span>
     <div class="grp">
       <span class="k opt">HULL</span><span id="hHullBar" class="meter hull" aria-hidden="true"><i id="hHull"></i></span>
@@ -140,14 +142,14 @@ kbd{font-family:var(--font-ui);font-weight:700;font-size:12px;border:1.5px solid
   <div class="card">
     <span class="eyebrow">PERSIAN GULF · STRAIT OF HORMUZ · ARABIAN SEA</span>
     <h1 class="logo">Hormuz <span>Dash</span></h1>
-    <p class="lead">Take your tanker into the Gulf, load crude or LNG at a terminal, then run it out through the Strait of Hormuz to the Arabian Sea and sell it. Iran will try to stop you.</p>
+    <p class="lead">Take your tanker into the Gulf, load crude or LNG at a terminal, then run it out through the Strait of Hormuz and sell it in the Gulf of Oman. You have five minutes. Each terminal reopens only after you have loaded at all the others. Iran will try to stop you.</p>
     <div class="cols">
       <div>
         <p class="sub">THE RUN</p>
         <ul class="list">
           <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#FCE9C5"/><circle cx="12" cy="14" r="5" fill="#C9CDD1" stroke="#7A8188"/><circle cx="22" cy="14" r="5" fill="#C9CDD1" stroke="#7A8188"/><circle cx="17" cy="23" r="5" fill="#C9CDD1" stroke="#7A8188"/></svg><span><b>Load</b>Slow down inside a terminal ring until the tanks fill.</span></li>
           <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#D6EAF4"/><path d="M6 17c0-2.5 1.4-3.5 3.5-3.5h15c3.2 0 5.5 1.6 5.5 3.5s-2.3 3.5-5.5 3.5h-15C7.4 20.5 6 19.5 6 17z" fill="#3A3F46"/><rect x="8" y="14.5" width="4" height="5" fill="#F2F2F0"/><path d="M13 17h14" stroke="#B9583F" stroke-width="2"/></svg><span><b>Run</b>Cross the Gulf and slip through the Strait.</span></li>
-          <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#DDF2E6"/><path d="M12 9v17" stroke="#0E1B26" stroke-width="2" stroke-linecap="round"/><path d="M13 10h11l-3 4 3 4H13z" fill="#3FB37F"/></svg><span><b>Sell</b>Reach the Arabian Sea at the east edge.</span></li>
+          <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#DDF2E6"/><path d="M12 9v17" stroke="#0E1B26" stroke-width="2" stroke-linecap="round"/><path d="M13 10h11l-3 4 3 4H13z" fill="#3FB37F"/></svg><span><b>Sell</b>Cross the green line just past the Strait.</span></li>
         </ul>
       </div>
       <div>
@@ -182,8 +184,8 @@ kbd{font-family:var(--font-ui);font-weight:700;font-size:12px;border:1.5px solid
 
 <section id="sOver" class="screen" hidden aria-label="Game over">
   <div class="card">
-    <span class="eyebrow">ALL THREE TANKERS LOST</span>
-    <h2 class="big">Game over</h2>
+    <span id="oWhy" class="eyebrow">ALL THREE TANKERS LOST</span>
+    <h2 id="oTitle" class="big">Game over</h2>
     <div class="stats">
       <div class="stat"><span class="k">EARNED</span><b id="oCash">$0.0M</b></div>
       <div class="stat"><span class="k">CARGOES SOLD</span><b id="oSold">0</b></div>
@@ -267,7 +269,8 @@ const CITIES = [ // name, lon, lat, urban radius (units), label side
   ['Shiraz', 52.55, 29.60, 160, 'n'], ['Khasab', 56.24, 26.19, 30, 'w']
 ];
 const START_LL = [56.75, 25.05];
-const SELL_LON = 58.9;
+const SELL_LON = 57.4;
+const GAME_TIME = 300;   // seconds per game
 const STRAIT_LL = [56.4, 26.55];
 const KN = 40;   // world units per second per knot shown in the HUD
 
@@ -489,7 +492,7 @@ function placeFixed() {
     const [x, y] = nearestWater(...P(...t.ll), 70);
     const anchor = t.offshore ? null : nearestLand(x, y);
     const d = Math.hypot(SELL_X - x, (y - P(0, 24.8)[1]) * 0.6) + Math.max(0, SPOTS.strait[0] - x) * 0.15;
-    const pay = Math.round((0.6 + d / 4200) * (t.kind === 'lng' ? 1.15 : 1) * 10) / 10;
+    const pay = Math.round((0.8 + d / 3400) * (t.kind === 'lng' ? 1.15 : 1) * 10) / 10;
     return { ...t, x, y, anchor, pay, r: 190 };
   });
   SPOTS.sites = SITES.map(s => { const [x, y] = P(...s.ll); return { ...s, x, y }; });
@@ -497,7 +500,7 @@ function placeFixed() {
 const fmtM = v => '$' + v.toFixed(1) + 'M';
 
 function newGame() {
-  G = { state: 'ready', t: 0, stateT: 0, cash: 0, sold: 0, lives: 3, banner: null, attract: false, heat: 1, alert: null };
+  G = { state: 'ready', t: 0, stateT: 0, cash: 0, sold: 0, lives: 3, banner: null, attract: false, heat: 1, alert: null, timeLeft: GAME_TIME, visited: new Set() };
   resetRun();
   G.banner = { title: 'UNDER WAY', sub: 'LOAD AT A TERMINAL INSIDE THE GULF', t: 0, life: 2.4 };
 }
@@ -549,6 +552,9 @@ function update(dt) {
     return;
   }
   if (G.state !== 'play') return;
+  G.timeLeft -= dt;
+  if (G.timeLeft <= 0) { G.timeLeft = 0; gameOver('time'); return; }
+  G.heat = Math.min(2.6, 1 + G.sold * 0.1 + (1 - G.timeLeft / GAME_TIME) * 0.8);   // Iran fires more as the clock runs down
   updatePlayer(dt, false);
   updateCargo(dt);
   director(dt);
@@ -594,15 +600,18 @@ function updateCargo(dt) {
   if (!p.cargo) {
     for (const t of SPOTS.terminals) {
       if (Math.hypot(p.x - t.x, p.y - t.y) > t.r) continue;
+      if (G.visited.has(t.id)) { if (G.closedHintT !== t.id) { G.closedHintT = t.id; showHint('Already loaded at <b>' + t.short + '</b>. It reopens once you have loaded at every other terminal.', 5); } continue; }
       p.atTerm = t;
       if (Math.abs(p.v) < 90) {
         if (p.load === 0) Snd.load();
         p.load = Math.min(1, p.load + dt / 2.4);
         if (p.load >= 1) {
           p.cargo = { kind: t.kind, pay: t.pay, from: t.short }; p.load = 0;
+          G.visited.add(t.id);
+          if (G.visited.size >= SPOTS.terminals.length) G.visited = new Set([t.id]);   // every port done: all reopen except this one
           popup(p.x, p.y - 90, (t.kind === 'oil' ? 'CRUDE LOADED · ' : 'LNG LOADED · ') + fmtM(t.pay), t.kind === 'oil' ? '#F5A623' : '#5CC8E8');
           Snd.load();
-          if (G.sold === 0) showHint('Loaded. Now run east through the <b>Strait of Hormuz</b> to the Arabian Sea.', 7);
+          if (G.sold === 0) showHint('Loaded. Now run east through the <b>Strait of Hormuz</b> to the green line.', 7);
           syncHud(true);
         }
       } else if (p.load === 0 && !G.slowHint) { G.slowHint = true; showHint('Too fast to load. Press <b>S</b> to slow down inside the ring.', 5); }
@@ -612,7 +621,6 @@ function updateCargo(dt) {
   } else if (p.x > SELL_X) {
     const v = p.cargo.pay;
     G.cash = Math.round((G.cash + v) * 10) / 10; G.sold++;
-    G.heat = Math.min(2.4, 1 + G.sold * 0.12);
     p.hull = Math.min(100, p.hull + 30);
     popup(p.x, p.y - 90, 'SOLD +' + fmtM(v), '#FFFFFF', 1.3);
     for (let i = 0; i < 30; i++) G.parts.push({ kind: 'spark', x: p.x, y: p.y, vx: rand(-300, 300), vy: rand(-300, 300), t: 0, life: rand(0.6, 1.1), r: rand(4, 8), col: pick(['#F5A623', '#5CC8E8', '#FFFFFF', '#3FB37F']) });
@@ -626,14 +634,14 @@ function updateCargo(dt) {
 /* ---------- Iran's threat director ---------- */
 function zoneRisk(x, y) {
   const lon = toLon(x), ds = Math.hypot(x - SPOTS.strait[0], y - SPOTS.strait[1]);
-  if (lon > 58.2) return 0.4;
+  if (lon > SELL_LON) return 0.4;
   if (ds < 1300) return 1.5;
   return 1;
 }
 function director(dt) {
   G.dirT -= dt * zoneRisk(G.p.x, G.p.y) * (G.p.cargo ? 1.2 : 1);
   if (G.dirT > 0) return;
-  G.dirT = rand(0.85, 1.2) * Math.max(4.2, 9 - (G.heat - 1) * 3.5);
+  G.dirT = rand(0.8, 1.15) * Math.max(2.8, 6.2 - (G.heat - 1) * 2.2);
   const r = Math.random(), order = r < 0.38 ? ['drone', 'cruise', 'ball'] : r < 0.72 ? ['cruise', 'drone', 'ball'] : ['ball', 'drone', 'cruise'];
   for (const k of order) if (launch(k)) return;
 }
@@ -655,21 +663,21 @@ function launch(kind) {
     return true;
   }
   if (kind === 'drone') {
-    if (count('drone') >= 3) return false;
+    if (count('drone') >= 5) return false;
     const list = sitesFor('c', 3400, 700); if (!list.length) return false;
-    const s = pick(list), n = G.heat > 2 && Math.random() < 0.4 ? 2 : 1;
+    const s = pick(list), n = G.heat > 1.4 && Math.random() < 0.5 ? 2 : 1;
     for (let i = 0; i < n; i++) G.threats.push({ k: 'drone', x: s.x + rand(-30, 30), y: s.y + rand(-30, 30), a: Math.atan2(p.y - s.y, p.x - s.x) + rand(-0.3, 0.3), v: 300, t: -i * 1.5, fuel: 40, st: 'fly', alt: 1, site: s.n, buzz: 0 });
     launchFx(s); Snd.buzz();
     alertMsg((n > 1 ? n + ' DRONES · ' : 'DRONE · ') + s.n.toUpperCase());
     return true;
   }
-  if (count('ball') >= 3) return false;
+  if (count('ball') >= 4) return false;
   const list = sitesFor('b', 4600, 600); if (!list.length) return false;
   // it lands where you will be if you hold course; later on a second one covers where you are now
-  const s = pick(list), T = 3.6, lead = rand(0.9, 1.05);
-  const put = (x, y) => G.threats.push({ k: 'ball', sx: s.x, sy: s.y, x: clamp(x, 80, WW - 80), y: clamp(y, 80, WH - 80), r: 300, t: 0, T, site: s.n, whistled: false });
-  put(p.x + Math.cos(p.a) * p.v * T * lead + rand(-80, 80), p.y + Math.sin(p.a) * p.v * T * lead + rand(-80, 80));
-  if (G.heat > 1.4 && Math.abs(p.v) > 150 && Math.random() < 0.5) put(p.x + rand(-60, 60), p.y + rand(-60, 60));
+  const s = pick(list), T = 3.6, lead = rand(0.95, 1.05);
+  const put = (x, y) => G.threats.push({ k: 'ball', sx: s.x, sy: s.y, x: clamp(x, 80, WW - 80), y: clamp(y, 80, WH - 80), r: 380, t: 0, T, site: s.n, whistled: false });
+  put(p.x + Math.cos(p.a) * p.v * T * lead + rand(-50, 50), p.y + Math.sin(p.a) * p.v * T * lead + rand(-50, 50));
+  if (Math.abs(p.v) > 200 && Math.random() < 0.35 + 0.25 * (G.heat - 1)) put(p.x + rand(-40, 40), p.y + rand(-40, 40));
   launchFx(s); Snd.launch();
   alertMsg('BALLISTIC MISSILE · LEAVE THE RED CIRCLE');
   return true;
@@ -754,8 +762,10 @@ function hurt(n, what) {
   }
   syncHud(true);
 }
-function gameOver() {
+function gameOver(why) {
   G.state = 'over';
+  $('oWhy').textContent = why === 'time' ? 'FIVE MINUTES ARE UP' : 'ALL THREE TANKERS LOST';
+  $('oTitle').textContent = why === 'time' ? 'Time is up' : 'Game over';
   if (G.cash > best) { best = G.cash; try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* storage unavailable */ } }
   $('oCash').textContent = fmtM(G.cash); $('oSold').textContent = String(G.sold); $('oBest').textContent = fmtM(best);
   show('sOver');
@@ -951,8 +961,8 @@ function drawSellZone(V) {
   g.addColorStop(0, 'rgba(120,230,170,0)'); g.addColorStop(1, 'rgba(120,230,170,' + (on ? 0.28 + 0.06 * Math.sin(G.t * 3) : 0.14).toFixed(3) + ')');
   ctx.fillStyle = g; ctx.fillRect(SELL_X - 500, 0, WW - SELL_X + 500, WH);
   ctx.strokeStyle = 'rgba(200,255,225,' + (on ? 0.8 : 0.45) + ')'; ctx.lineWidth = 3 / S;
-  ctx.beginPath(); ctx.moveTo(SELL_X, P(0, 25.45)[1]); ctx.lineTo(SELL_X, P(0, 23.2)[1]); ctx.stroke();
-  const lx = SELL_X + 380, ly = P(0, 24.55)[1];
+  ctx.beginPath(); ctx.moveTo(SELL_X, P(0, 25.85)[1]); ctx.lineTo(SELL_X, P(0, 23.75)[1]); ctx.stroke();
+  const lx = SELL_X + 380, ly = P(0, 24.85)[1];
   label('BUYERS · SELL HERE', lx, ly, 16, '#FFFFFF');
   label('INDIA · CHINA · JAPAN · EUROPE', lx, ly + 26 / S, 12, 'rgba(255,255,255,.85)');
 }
@@ -966,7 +976,7 @@ function label(t, x, y, px, col) {
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
 }
 function drawTerminal(t) {
-  const col = t.kind === 'oil' ? '245,166,35' : '92,200,232', active = !G.p.cargo;
+  const closed = G.visited.has(t.id), col = closed ? '150,160,168' : t.kind === 'oil' ? '245,166,35' : '92,200,232', active = !G.p.cargo && !closed;
   // berth ring
   const g = ctx.createRadialGradient(t.x, t.y, t.r * 0.3, t.x, t.y, t.r);
   g.addColorStop(0, 'rgba(' + col + ',0)'); g.addColorStop(1, 'rgba(' + col + ',' + (active ? 0.22 + 0.06 * Math.sin(G.t * 3) : 0.08).toFixed(3) + ')');
@@ -1032,8 +1042,9 @@ function drawTerminalLabels() {
     ctx.fillText(t.short, sx - w / 2 + 40, y - 4);
     if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
     ctx.font = '700 12px "Barlow","Segoe UI",sans-serif';
-    ctx.fillStyle = t.kind === 'oil' ? '#F5A623' : '#5CC8E8'; ctx.fillText(t.kind === 'oil' ? 'CRUDE OIL' : 'LNG', sx - w / 2 + 40, y + 11);
-    ctx.fillStyle = '#fff'; ctx.textAlign = 'right'; ctx.fillText(fmtM(t.pay), sx + w / 2 - 10, y + 11);
+    const closed = G.visited.has(t.id);
+    ctx.fillStyle = closed ? '#9AA5AE' : t.kind === 'oil' ? '#F5A623' : '#5CC8E8'; ctx.fillText(closed ? 'LOADED · CLOSED' : t.kind === 'oil' ? 'CRUDE OIL' : 'LNG', sx - w / 2 + 40, y + 11);
+    ctx.fillStyle = closed ? '#9AA5AE' : '#fff'; ctx.textAlign = 'right'; ctx.fillText(fmtM(t.pay), sx + w / 2 - 10, y + 11);
   }
 }
 function drawFlag(code, x, y, w, h) {
@@ -1239,8 +1250,8 @@ function drawEdgeMarkers() {
   };
   const off = (sx, sy) => sx < m || sx > VW - m || sy < top || sy > VH - m;
   let tx, ty, name;
-  if (p.cargo) { tx = SELL_X + 300; ty = clamp(p.y, P(0, 25.2)[1], P(0, 23.6)[1]); name = 'ARABIAN SEA'; }
-  else { let bd = 1e9; for (const t of SPOTS.terminals) { const d = Math.hypot(t.x - p.x, t.y - p.y); if (d < bd) { bd = d; tx = t.x; ty = t.y; name = t.short; } } }
+  if (p.cargo) { tx = SELL_X + 250; ty = clamp(p.y, P(0, 25.45)[1], P(0, 24.2)[1]); name = 'SELL LINE'; }
+  else { let bd = 1e9; for (const t of SPOTS.terminals) { if (G.visited.has(t.id)) continue; const d = Math.hypot(t.x - p.x, t.y - p.y); if (d < bd) { bd = d; tx = t.x; ty = t.y; name = t.short; } } }
   const [tsx, tsy] = w2s(tx, ty);
   if (off(tsx, tsy)) {
     const [ex, ey, a] = edge(tsx, tsy), nm = Math.round(Math.hypot(tx - p.x, ty - p.y) * 0.054);
@@ -1315,7 +1326,7 @@ function drawMini() {
   mctx.drawImage(MAP.low, 0, 0, w, h);
   mctx.fillStyle = 'rgba(120,230,170,.3)'; mctx.fillRect(SELL_X * sx, 0, w - SELL_X * sx, h);
   for (const t of SPOTS.terminals) {
-    mctx.fillStyle = t.kind === 'oil' ? '#F5A623' : '#5CC8E8'; mctx.strokeStyle = '#0A1620'; mctx.lineWidth = 2;
+    mctx.fillStyle = G.visited.has(t.id) ? '#8A949C' : t.kind === 'oil' ? '#F5A623' : '#5CC8E8'; mctx.strokeStyle = '#0A1620'; mctx.lineWidth = 2;
     mctx.beginPath(); mctx.arc(t.x * sx, t.y * sy, 6, 0, TAU); mctx.fill(); mctx.stroke();
   }
   mctx.fillStyle = '#E5413B';
@@ -1335,9 +1346,11 @@ const HUD = {};
 const LIFE_SVG = '<svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5c0-2.4 1.2-3.5 3-3.5h15c3.5 0 6 1.6 6 3.5S22.5 8.5 19 8.5H4C2.2 8.5 1 7.4 1 5z" fill="#F2F1EC"/><rect x="3" y="2.5" width="4" height="5" fill="#C8462F"/></svg>';
 function syncHud(force) {
   const p = G.p;
-  const status = p.cargo ? [p.cargo.kind === 'oil' ? 'oil' : 'lng', (p.cargo.kind === 'oil' ? 'Crude' : 'LNG') + ' from ' + p.cargo.from + ' · ' + fmtM(p.cargo.pay) + ' · sell in the Arabian Sea'] : ['', 'Empty · load at an oil or gas terminal'];
+  const status = p.cargo ? [p.cargo.kind === 'oil' ? 'oil' : 'lng', (p.cargo.kind === 'oil' ? 'Crude' : 'LNG') + ' from ' + p.cargo.from + ' · ' + fmtM(p.cargo.pay) + ' · sell past the green line'] : ['', 'Empty · load at an open terminal'];
   if (G.state === 'play' && G.threats.some(t => t.k === 'ball')) status[0] = 'warn';
-  const vals = { cash: fmtM(G.cash), status: status.join('|'), hull: Math.ceil(p.hull), lives: G.lives };
+  const sec = Math.ceil(G.timeLeft), clock = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  if (force || HUD.clock !== clock) { const el = $('hTime'); el.textContent = clock; el.classList.toggle('low', sec <= 30); }
+  const vals = { cash: fmtM(G.cash), status: status.join('|'), hull: Math.ceil(p.hull), lives: G.lives, clock };
   if (force || HUD.cash !== vals.cash) $('hCash').textContent = vals.cash;
   if (force || HUD.status !== vals.status) { const el = $('hStatus'); el.textContent = status[1]; el.className = 'status' + (status[0] ? ' ' + status[0] : ''); }
   if (force || HUD.hull !== vals.hull) { $('hHull').style.width = vals.hull + '%'; $('hHullBar').className = 'meter hull' + (vals.hull < 35 ? ' low' : vals.hull < 65 ? ' mid' : ''); }

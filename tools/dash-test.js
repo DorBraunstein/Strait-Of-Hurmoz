@@ -92,13 +92,25 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
       }
       return res;
     });
+    // port rotation and the five-minute clock
+    const extra = await page.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      G.threats = []; G.state = 'play'; G.dirT = 999; G.p.cargo = null; G.visited = new Set(); G.p.inv = 99; G.p.hull = 100;
+      const t = SPOTS.terminals[3]; G.p.x = t.x; G.p.y = t.y; G.p.v = 0; await wait(2900);
+      const first = G.p.cargo && G.p.cargo.from; G.p.cargo = null; await wait(2900);
+      const again = !!G.p.cargo;
+      G.timeLeft = 1.2; await wait(1600);
+      const timeUp = !document.getElementById('sOver').hidden && document.getElementById('oTitle').textContent;
+      document.getElementById('sOver').hidden = true;
+      return { first, reloadSamePort: again, timeUp, sellLon: SELL_LON };
+    });
     // sink + game over
     const end = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
       G.threats = []; G.lives = 1; G.state = 'play'; G.p.inv = 0; hurt(200, 'test'); await wait(3200);
       return { over: !document.getElementById('sOver').hidden };
     });
-    out[name] = { bootMs, ctl, ...r, dodge, esc, ...end, errs };
+    out[name] = { bootMs, ctl, ...r, dodge, esc, extra, ...end, errs };
     await page.close();
   }
   console.log(JSON.stringify(out, null, 1));
