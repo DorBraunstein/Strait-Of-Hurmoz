@@ -858,11 +858,11 @@ function gust() {
   setWind(speed, dir);
   return Math.abs(speed - w.s) > 0.3 || dir !== w.dir;
 }
-// the archer lowers the bow after each shot, so every arrow has to be aimed again
+// the archer lowers the bow after each shot, so every arrow has to be raised and aimed again
 function lowerBow() {
-  const a = Math.random() * Math.PI * 2, r = 0.045 + Math.random() * 0.045;
-  G.yaw = Math.cos(a) * r;
-  G.pitch = Math.atan2(BOSS_Y - EYE, G.D) - 0.03 + Math.sin(a) * r * 0.7;
+  // always the same spot: straight at the target, bow lowered about 7 degrees
+  G.yaw = 0;
+  G.pitch = Math.atan2(BOSS_Y - EYE, G.D) - 0.12;
 }
 const groundArrows = [];
 
