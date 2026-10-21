@@ -1033,6 +1033,10 @@ function nextArrow() {
 const aimQ = () => tmpQ.setFromEuler(new THREE.Euler(G.pitch, G.yaw, 0, 'YXZ'));
 const EYE_POS = new THREE.Vector3(0, EYE, 0);
 // slow wander plus a faster tremble; you have to time the release
+// Zoom grows with distance so a far target stays readable: at full pull the target looks
+// about as big at 60 m as at 25 m. Drop, wind and sway still grow with distance.
+const fullFov = d => clamp(24 * 25 / Math.max(d, 25), 8.5, 24);
+const restFov = d => 50 - clamp((d - 25) / 45, 0, 1) * 14;
 function swayAt(t, amp) {
   return [amp * (Math.sin(t * 0.7) * 0.8 + Math.sin(t * 1.9 + 1) * 0.5 + Math.sin(t * 4.3 + 2) * 0.25 + Math.sin(t * 9.7) * 0.12),
     amp * (Math.sin(t * 0.6 + 3) * 0.7 + Math.sin(t * 2.3) * 0.45 + Math.sin(t * 5.1 + 1) * 0.25 + Math.sin(t * 11.3 + 2) * 0.12) + 0.003 * Math.sin(t * 1.4)];
@@ -1051,7 +1055,7 @@ function updateCamera(dt, t) {
     const [sy, sp] = swayAt(t, G.sway);
     camera.position.copy(EYE_POS);
     camera.rotation.set(G.pitch + sp, G.yaw + sy, 0, 'YXZ');
-    const fov = 50 - 26 * ease(G.draw);
+    const fov = lerp(restFov(G.D), fullFov(G.D), ease(G.draw));
     G.fov = lerp(G.fov, fov, Math.min(1, dt * 8));
   } else if (st === 'flight') {
     const F = G.flight, d = F.vel.clone().normalize();
@@ -1078,8 +1082,8 @@ function updateCamera(dt, t) {
     const k = ease(Math.min(1, G.stT / 0.75));
     camera.position.lerpVectors(G.camFrom.p, EYE_POS, k);
     camera.quaternion.slerpQuaternions(G.camFrom.q, aimQ(), k);
-    G.fov = lerp(G.camFrom.fov, 50, k);
-    if (k >= 1) { G.fov = 50; nextArrow(); }
+    G.fov = lerp(G.camFrom.fov, restFov(G.D), k);
+    if (k >= 1) { G.fov = restFov(G.D); nextArrow(); }
   } else if (st === 'card') {
     camera.position.copy(EYE_POS); camera.rotation.set(G.pitch, G.yaw, 0, 'YXZ');
   }
