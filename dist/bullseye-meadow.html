@@ -381,6 +381,39 @@ function drawFace(g, cx, cy, R, detail) {
 }
 TEX.face = canvasTex(2048, 2048, (g, w) => drawFace(g, w / 2, w / 2, w / 2 - 1, true));
 TEX.face.anisotropy = ANISO; TEX.face.generateMipmaps = true; TEX.face.minFilter = THREE.LinearMipmapLinearFilter;
+// Up close the rings are drawn mathematically, so their edges stay sharp however near the
+// camera gets; from further away the (mipmapped) picture takes over. Numbers and paper
+// texture always come from the picture.
+function sharpRings(mat) {
+  mat.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `
+#ifdef USE_MAP
+  vec4 texelColor = mapTexelToLinear(texture2D(map, vUv));
+  vec2 fp = vUv * 2.0 - 1.0;
+  float ring = length(fp) * 10.0;                // 0 at the centre, 10 at the edge
+  float dist = length(vViewPosition);
+  float w = clamp(dist * 0.006, 0.004, 0.08);     // about one pixel, in ring widths
+  float b = floor(ring), f = ring - b;
+  #define BAND(i) ((i) < 2.0 ? vec3(1.0, 0.66, 0.045) : (i) < 4.0 ? vec3(0.8, 0.054, 0.028) : (i) < 6.0 ? vec3(0.025, 0.35, 0.75) : (i) < 8.0 ? vec3(0.018, 0.019, 0.025) : vec3(0.93, 0.9, 0.81))
+  vec3 here = BAND(b), next = BAND(b + 1.0);
+  vec3 col = mix(here, next, smoothstep(1.0 - w, 1.0 + w, f));
+  // thin dividing line at every ring: white on black, dark elsewhere
+  float edge = min(f, 1.0 - f);
+  float line = 1.0 - smoothstep(0.02, 0.02 + w, edge);
+  vec3 lineCol = (b >= 6.0 && b < 8.0 && f > 0.5) || (b >= 5.0 && b < 7.0 && f < 0.5 && b > 5.5) ? vec3(0.75) : vec3(0.02);
+  if (ring > 0.3) col = mix(col, lineCol, line * 0.85);
+  // the X ring and the centre cross
+  col = mix(col, vec3(0.03), (1.0 - smoothstep(0.012, 0.012 + w, abs(ring - 0.5))) * 0.8);
+  float cross = (1.0 - smoothstep(0.006, 0.006 + w, min(abs(fp.x), abs(fp.y)) * 10.0)) * step(ring, 0.15);
+  col = mix(col, vec3(0.03), cross * 0.8);
+  // keep the printed numbers and paper grain from the picture
+  float ink = smoothstep(0.12, 0.3, length(texelColor.rgb - col)) * smoothstep(0.1, 0.18, edge);
+  col = mix(col, texelColor.rgb, ink);
+  diffuseColor.rgb *= mix(col, texelColor.rgb, smoothstep(9.0, 16.0, dist));
+#endif`);
+  };
+}
+
 TEX.glow = canvasTex(64, 64, (g, w) => { const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.35, 'rgba(255,255,255,.5)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, w, w); });
 // a puffy cloud: soft white lumps, lit from above and a little blue-grey underneath
 TEX.cloud = canvasTex(512, 256, (g, w, h) => {
@@ -423,6 +456,8 @@ const M = {
   grip: new THREE.MeshStandardMaterial({ color: col('#3A2618'), roughness: 0.9 }),
   string: new THREE.MeshStandardMaterial({ color: col('#F2ECDD'), roughness: 0.6 }),
 };
+
+sharpRings(M.face);
 
 // ---------- lighting and sky ----------
 const SUN_DIR = new THREE.Vector3(0.75, 0.42, 0.52).normalize();
