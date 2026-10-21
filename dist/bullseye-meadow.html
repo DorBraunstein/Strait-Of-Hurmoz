@@ -210,7 +210,7 @@ h2{font-size:clamp(34px,7vw,52px)}
       <div class="eyebrow">Archery range · 4 ends · 12 arrows</div>
       <h1>Bullseye Meadow</h1>
     </div>
-    <p class="lede">Aim, pull the string back, then let go. A gentle pull drops the arrow low; a strong pull flies flat and fast. Watch the flags, because the wind pushes arrows sideways, up or down. The target moves farther away each end: 15, 25, 40 and 60 metres.</p>
+    <p class="lede">Aim, pull the string back, then let go. A gentle pull drops the arrow low; a strong pull flies flat and fast. Watch the wind arrow, because the wind pushes arrows sideways, up or down. The target moves farther away each end: 15, 25, 40 and 60 metres.</p>
     <ol class="steps" id="steps"></ol>
     <div class="opt">
       <span class="label">Aim helper</span>
@@ -384,7 +384,6 @@ const M = {
   face: new THREE.MeshStandardMaterial({ map: TEX.face, roughness: 0.85 }),
   wood: new THREE.MeshStandardMaterial({ map: TEX.wood, roughness: 0.8 }),
   white: new THREE.MeshStandardMaterial({ color: col('#F4F1E8'), roughness: 0.7 }),
-  pole: new THREE.MeshStandardMaterial({ color: col('#E9E4D8'), roughness: 0.5, metalness: 0.2 }),
   trunk: new THREE.MeshStandardMaterial({ color: col('#6B4A2E'), roughness: 1 }),
   leaf: new THREE.MeshStandardMaterial({ roughness: 0.85 }),
   carbon: new THREE.MeshStandardMaterial({ color: col('#F3EEE2'), roughness: 0.45, metalness: 0.05 }),
@@ -596,7 +595,6 @@ function beam(group, a, b, mat) {
 }
 const bossGeo = new THREE.CylinderGeometry(BOSS_R, BOSS_R, 0.34, 56, 1); bossGeo.rotateX(Math.PI / 2);
 const faceGeo = new THREE.CircleGeometry(FACE_R, 96);
-const pennantFlags = [];
 function makeTarget(x, num, active) {
   const g = new THREE.Group(); g.position.x = x;
   beam(g, [-0.62, 0, 0.42], [-0.32, 2.0, -0.02], M.wood);
@@ -608,66 +606,11 @@ function makeTarget(x, num, active) {
   const face = new THREE.Mesh(faceGeo, M.face); face.position.z = 0.172; face.receiveShadow = true; tilt.add(face);
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.3), new THREE.MeshStandardMaterial({ map: labelTex(String(num), active ? '#FFC83D' : '#FFF6E2', '#1E2433', 128, 112), roughness: 0.8 }));
   plate.position.set(0, 0.62, 0.36); g.add(plate);
-  // a little pennant on top that shows the wind
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.9, 6), M.pole); pole.position.set(-0.45, 2.35, -0.05); pole.castShadow = true; g.add(pole);
-  const flag = makeFlag(0.42, 0.24, active ? '#FFC83D' : ['#FF5A36', '#2C9FE0', '#7BC74D', '#B36BE0'][num % 4], true);
-  flag.position.set(-0.45, 2.75, -0.05); g.add(flag); pennantFlags.push(flag);
   scene.add(g);
   return { g, tilt, face, wobble: 0, wobbleV: 0, active, stuck: [] };
 }
 const mainTarget = makeTarget(0, 1, true);
 const targets = [mainTarget];
-
-// ---------- flags (wind) ----------
-function makeFlag(len, h, color, pennant) {
-  const geo = new THREE.PlaneGeometry(len, h, 12, 4); geo.translate(len / 2, -h / 2, 0);
-  if (pennant) { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const u = p.getX(i) / len; p.setY(i, -h / 2 + (p.getY(i) + h / 2) * (1 - u * 0.95)); } }
-  const base = geo.attributes.position.array.slice();
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col(color), roughness: 0.75, side: THREE.DoubleSide }));
-  m.castShadow = true;
-  const holder = new THREE.Group(); holder.add(m); holder.userData = { base, len, mesh: m, ph: rnd() * 10 };
-  return holder;
-}
-const bigFlags = [];
-function makeFlagPole(color) {
-  const g = new THREE.Group();
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 5.2, 8), M.pole); pole.position.y = 2.6; pole.castShadow = true; g.add(pole);
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), M.steel); ball.position.y = 5.25; g.add(ball);
-  const f = makeFlag(1.3, 0.75, color, false); f.position.y = 5.1; g.add(f); bigFlags.push(f);
-  scene.add(g); return g;
-}
-const flagPoles = [makeFlagPole('#E5482F'), makeFlagPole('#2C9FE0'), makeFlagPole('#FFC83D')];
-function animFlag(f, t, w) {
-  const ud = f.userData, pos = ud.mesh.geometry.attributes.position, base = ud.base;
-  const s = clamp(w.s / 4, 0.12, 1);
-  // point downwind: left or right, tipped up or down, drooping when the wind is light
-  f.rotation.y = w.x < -0.01 ? Math.PI : 0;
-  f.children[0].rotation.z = Math.atan2(w.y, Math.abs(w.x)) * s - (1 - s) * 1.25;
-  const amp = (0.05 + 0.1 * s) * ud.len, fr = 3 + 5 * s;
-  for (let i = 0; i < pos.count; i++) {
-    const x = base[i * 3], u = x / ud.len;
-    pos.setZ(i, Math.sin(t * fr + ud.ph - u * 7) * u * amp + Math.sin(t * fr * 1.7 - u * 13) * u * amp * 0.25);
-  }
-  pos.needsUpdate = true; ud.mesh.geometry.computeVertexNormals();
-}
-
-// bunting strung behind the targets
-const bunting = new THREE.Group(); scene.add(bunting);
-{
-  const pos = [], cols = [], palette = ['#E5482F', '#FFC83D', '#2C9FE0', '#7BC74D', '#B36BE0', '#FF8A3D'];
-  for (const x of [-15, 15]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 4, 8), M.wood); p.position.set(x, 2, 0); p.castShadow = true; bunting.add(p); }
-  const ropeY = x => 3.8 - 0.9 * (1 - (x / 15) ** 2);
-  const rope = []; for (let x = -15; x <= 15.01; x += 0.5) rope.push(new THREE.Vector3(x, ropeY(x), 0));
-  bunting.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rope), 60, 0.012, 4), M.grip));
-  let k = 0;
-  for (let x = -14.4; x < 14.4; x += 0.72, k++) {
-    const y0 = ropeY(x), y1 = ropeY(x + 0.5), c = col(palette[k % palette.length]);
-    pos.push(x, y0, 0, x + 0.25, (y0 + y1) / 2 - 0.42, 0, x + 0.5, y1, 0);
-    for (let j = 0; j < 3; j++) cols.push(c.r, c.g, c.b);
-  }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); g.computeVertexNormals();
-  const tri = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.8 })); tri.castShadow = true; bunting.add(tri);
-}
 
 // drifting pollen in the sunlight
 const motes = (() => {
@@ -903,10 +846,6 @@ function placeTarget(d) {
   G.D = d;
   clearArrows();
   for (const t of targets) t.g.position.z = -d;
-  bunting.position.z = -d - 6;
-  flagPoles[0].position.set(-12.2, 0, -d * 0.45);
-  flagPoles[1].position.set(12.2, 0, -d - 1.5);
-  flagPoles[2].position.set(-12.2, 0, -d - 1.5);
   // keep the sun's shadow box around the range in use
   const cz = -d / 2 + 1, half = Math.hypot(15, d / 2 + 9) + 2;
   sun.target.position.set(0, 0, cz); sun.position.set(0, 0, cz).addScaledVector(SUN_DIR, 120);
@@ -963,7 +902,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 function idleHint() {
   if (!G || !canPlay() || G.state !== 'aim' || G.drawing) return;
-  if (G.gusted) { setHint('The wind changed. Check the flags!'); G.gusted = false; return; }
+  if (G.gusted) { setHint('The wind changed. Check the wind arrow!'); G.gusted = false; return; }
   setHint(isTouch ? 'Press and hold to pull' : noLock ? 'Click and hold to pull' : isLocked() ? 'Hold the mouse button to pull · Esc to change settings' : 'Aim paused · click the range to aim');
 }
 canvas.addEventListener('pointerdown', e => {
@@ -1171,13 +1110,10 @@ function updateCamera(dt, t) {
 function animateWorld(dt, t) {
   const wind = G ? G.wind : { x: 1.2, y: 0, s: 1.2 };
   grassUniforms.time.value = t; grassUniforms.wind.value = wind.s;
-  for (const f of bigFlags) animFlag(f, t, wind);
-  for (const f of pennantFlags) animFlag(f, t, wind);
   for (const T of targets) {
     T.wobbleV += (-T.wobble * 90 - T.wobbleV * 6) * dt; T.wobble += T.wobbleV * dt;
     T.tilt.rotation.x = -0.16 - T.wobble * 0.05;
   }
-  bunting.rotation.x = Math.sin(t * 1.3) * 0.03 * (0.5 + wind.s * 0.2);
   // pollen drifts with the wind and wraps around the camera's area
   const P = motes.pos;
   for (let i = 0; i < motes.N; i++) {
