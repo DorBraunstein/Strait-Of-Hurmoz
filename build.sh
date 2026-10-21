@@ -10,3 +10,8 @@ mkdir -p dist
   printf '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0}img{max-width:100%%}[hidden]{display:none!important}</style></head><body>\n'
   cat dist/artifact.html; printf '</body></html>\n'; } > dist/index.html
 node -e "const s=require('fs').readFileSync('dist/artifact.html','utf8');new Function(s.split('<script>')[1].split('</script>')[0]);" && echo "built dist/ (syntax ok)"
+# Hormuz Dash, the light arcade version: dash/hormuz-dash.html is the Artifact page, dist/dash.html opens locally
+{ printf '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+  printf '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0}[hidden]{display:none!important}</style></head><body>\n'
+  cat dash/hormuz-dash.html; printf '</body></html>\n'; } > dist/dash.html
+node -e "const s=require('fs').readFileSync('dash/hormuz-dash.html','utf8');new Function(s.split('<script>')[1].split('</script>')[0]);" && echo "built dist/dash.html (syntax ok)"
