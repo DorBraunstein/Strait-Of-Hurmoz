@@ -70,6 +70,11 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
   .quiver{gap:4px}
   .quiver span{width:22px;height:22px;font-size:12px;border-width:2px}
   .modes button{padding:5px 8px;font-size:12px}
+  .wind-chip .k{display:none}
+  .wind-chip .icon-btn{width:30px;height:30px}
+  .score-chip{padding:5px 10px 7px}
+  .right{min-width:0;flex:none}
+  .modes{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 74px)}
   .k{font-size:11px;letter-spacing:.08em}
   .score-chip{padding:6px 12px 8px}
   .wind-chip{gap:6px;padding:6px 6px 6px 10px}
@@ -93,7 +98,7 @@ body.playing.editing #scene{cursor:pointer}
 .meter.full .bar i{box-shadow:0 0 12px var(--gold)}
 .meter.shaky .bar i{background:var(--red)}
 .meter .pct{font-family:var(--font-display);font-weight:700;font-size:18px;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
-.pull{position:fixed;z-index:6;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
+.pull{position:fixed;z-index:6;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
   width:92px;height:92px;border-radius:50%;background:var(--gold);color:var(--ink);font-family:var(--font-display);font-weight:800;font-size:22px;
   box-shadow:0 5px 0 #C9931A,0 10px 24px rgba(0,0,0,.3);touch-action:none;-webkit-user-select:none;user-select:none}
 .pull.on{transform:translateY(4px) scale(.96);box-shadow:0 1px 0 #C9931A,0 6px 14px rgba(0,0,0,.3);background:#FFB21A}
@@ -168,7 +173,7 @@ h2{font-size:clamp(34px,7vw,52px)}
 .pseg button,.pbtn{font-weight:700;font-size:14px;padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font-variant-numeric:tabular-nums}
 .pseg button:hover,.pbtn:hover{background:rgba(255,255,255,.24)}
 .pseg button[aria-pressed="true"]{background:var(--gold);color:var(--ink)}
-@media (pointer:coarse){.drawbox{align-items:flex-start;padding-right:124px}.meter{width:100%}}
+@media (pointer:coarse){.drawbox{align-items:flex-end;padding-left:124px}.meter{width:100%}.hint{text-align:right}}
 @media (max-width:600px){.practice{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 118px);left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px))}.practice.min{right:auto}.prow .k{min-width:0}.pseg button,.pbtn{padding:6px 8px;font-size:13px}}
 .error{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;font-weight:600;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){.popup.show div{animation:none}.wind-chip svg{transition:none}}
@@ -1182,7 +1187,7 @@ function release() {
   fire(G.draw);
 }
 
-// the PULL button on touch screens: hold to pull, let go to shoot; another finger can keep aiming
+// the PULL button on touch screens (bottom left, for the left thumb): hold to pull, let go to shoot; the right thumb keeps aiming
 {
   const b = $('pullBtn');
   b.addEventListener('pointerdown', e => {
