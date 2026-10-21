@@ -816,7 +816,7 @@ function setupEnd(i) {
   placeTarget(e.d);
   lowerBow();
 }
-// practice: any distance, wind of your choice, no limit on arrows; the aim stays where you left it
+// practice: any distance, wind of your choice, no limit on arrows
 function setupPractice() {
   G.windRange = PRACTICE_WIND[S.pw];
   setWind(G.windRange[0] + Math.random() * (G.windRange[1] - G.windRange[0]), Math.floor(Math.random() * 8));
@@ -1081,8 +1081,8 @@ function updateCamera(dt, t) {
     G.fov = lerp(G.fov, 38, Math.min(1, dt * 3));
     const hold = H.kind === 'lost' ? 1.0 : 2.1;
     if (G.stT > hold) {
-      if (G.mode === 'practice') G.gusted = gust();
-      else if (G.arrow < 2) { lowerBow(); G.gusted = gust(); }
+      // the bow is lowered after every shot, so each arrow is aimed from scratch
+      if (G.mode === 'practice' || G.arrow < 2) { lowerBow(); G.gusted = gust(); }
       G.state = 'return'; G.stT = 0; G.camFrom = { p: camera.position.clone(), q: camera.quaternion.clone(), fov: G.fov }; hidePopup();
     }
   } else if (st === 'return') {
