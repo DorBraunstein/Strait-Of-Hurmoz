@@ -248,18 +248,6 @@ h2{font-size:clamp(34px,7vw,52px)}
   </div>
 </div>
 
-<div class="scrim" id="endcard" hidden>
-  <div class="card">
-    <div>
-      <div class="eyebrow" id="ecEyebrow">End 1 of 4 · 15 m</div>
-      <h2 id="ecTitle">26 points</h2>
-    </div>
-    <div class="ends" id="ecEnds"></div>
-    <p class="sub" id="ecNext"></p>
-    <div class="actions"><button class="go-btn" id="bNext">Next end</button></div>
-  </div>
-</div>
-
 <div class="scrim" id="results" hidden>
   <div class="card">
     <div class="medal">
@@ -344,6 +332,9 @@ function strokes(g, w, h, n, colorFn, lenA, lenB, lw) {
   }
 }
 const grassCol = () => 'hsl(' + (78 + rnd() * 30) + ',' + (42 + rnd() * 22) + '%,' + (26 + rnd() * 24) + '%)';
+
+// scenery the game can thin out on slow devices (see adaptResolution)
+const DETAIL = { level: 0, far: [], grass: null };
 
 // ---------- textures ----------
 const TEX = {};
@@ -522,7 +513,8 @@ bladeMat.onBeforeCompile = sh => {
     '#include <begin_vertex>\nvec4 wp = instanceMatrix * vec4(0.0,0.0,0.0,1.0);\nfloat sway = sin(time * 2.2 + wp.x * 0.35 + wp.z * 0.25) * 0.5 + 0.5;\ntransformed.x += (0.04 + wind * 0.025) * position.y * 4.0 * sway;\ntransformed.z += 0.02 * position.y * 4.0 * sin(time * 1.7 + wp.x);');
 };
 {
-  const N = isTouch ? 3200 : 9000, mesh = new THREE.InstancedMesh(bladeGeometry(), bladeMat, N);
+  const N = isTouch ? 2200 : 9000, mesh = new THREE.InstancedMesh(bladeGeometry(), bladeMat, N);
+  DETAIL.grass = mesh;
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), c = new THREE.Color();
   for (let i = 0; i < N; i++) {
     let x, z;
@@ -553,7 +545,7 @@ function heightAt(x, z) {
   return Math.max(-1, near * rolling) + far * ridge;
 }
 {
-  const N = isTouch ? 170 : 320, geo = new THREE.PlaneGeometry(4400, 4400, N, N);
+  const N = isTouch ? 150 : 230, geo = new THREE.PlaneGeometry(4400, 4400, N, N);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position, cols = new Float32Array(pos.count * 3), c = new THREE.Color();
   const grass = col('#FFFFFF'), forest = col('#6F8F5A'), rock = col('#8391AC'), snow = col('#F6F5F2');
@@ -572,7 +564,7 @@ function heightAt(x, z) {
 {
   const trunkGeo = new THREE.CylinderGeometry(0.14, 0.24, 1, 8); trunkGeo.translate(0, 0.5, 0);
   // a lumpy, rounded canopy
-  const leafGeo = new THREE.SphereGeometry(1, 16, 12);
+  const leafGeo = new THREE.SphereGeometry(1, 12, 9);
   { const p = leafGeo.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + (vnoise(x * 2.3 + 5, z * 2.3 + y * 1.7) - 0.5) * 0.42; p.setXYZ(i, x * k, y * k * 0.92, z * k); } leafGeo.computeVertexNormals(); }
   // a pine: three stacked cones
   const pineGeo = (() => {
@@ -592,10 +584,14 @@ function heightAt(x, z) {
   };
   for (let i = 0; i < 260; i++) tryAdd((rnd() - 0.5) * 300, 30 - rnd() * 300);
   for (let i = 0; i < (isTouch ? 800 : 2800); i++) tryAdd((rnd() - 0.5) * 1400, 250 - rnd() * 1100);
+  const pineMat = new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true });
+  // only trees near the range cast shadows: the far ones would all be drawn into the shadow map for nothing
+  const isNear = ([x, , z]) => Math.hypot(x, z + 40) < 150;
+  const farLeafGeo = new THREE.IcosahedronGeometry(1, 0); // far away in the haze, a simple shape is enough
+  function plant(leafy, pines, shadow) {
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), c = new THREE.Color();
   const trunks = new THREE.InstancedMesh(trunkGeo, M.trunk, leafy.length + pines.length);
-  const leaves = new THREE.InstancedMesh(leafGeo, M.leaf, leafy.length * 3);
-  const pineMat = new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true });
+  const leaves = new THREE.InstancedMesh(shadow ? leafGeo : farLeafGeo, M.leaf, leafy.length * 3);
   const pineMesh = new THREE.InstancedMesh(pineGeo, pineMat, pines.length);
   const greens = ['#3F7A33', '#4F8C3A', '#35703A', '#6C9A3E', '#87A847', '#3B6E2B', '#5C8F2F'];
   let ti = 0;
@@ -616,7 +612,10 @@ function heightAt(x, z) {
     p.set(x, y + h * 0.25, z); q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6); s.set(r, h / 2.6, r); m.compose(p, q, s); pineMesh.setMatrixAt(i, m);
     c.set(['#2F5E33', '#3A6B3A', '#2B5530', '#406F3C'][Math.floor(rnd() * 4)]).convertSRGBToLinear(); pineMesh.setColorAt(i, c);
   });
-  for (const o of [trunks, leaves, pineMesh]) { o.castShadow = true; o.receiveShadow = true; scene.add(o); }
+  for (const o of [trunks, leaves, pineMesh]) { o.castShadow = shadow; o.receiveShadow = true; scene.add(o); if (!shadow) DETAIL.far.push(o); }
+  }
+  plant(leafy.filter(isNear), pines.filter(isNear), true);
+  plant(leafy.filter(t => !isNear(t)), pines.filter(t => !isNear(t)), false);
 }
 // wildflowers in the meadow
 {
@@ -678,32 +677,32 @@ const targets = [mainTarget];
 // aim, the arrow in flight, then the target. They clap, cheer or groan at the result.
 function capsuleGeo(r, len, radial) {
   const pts = [];
-  for (let i = 0; i <= 4; i++) { const a = -Math.PI / 2 + (i / 4) * Math.PI / 2; pts.push(new THREE.Vector2(Math.max(0.0001, Math.cos(a) * r), r + Math.sin(a) * r)); }
-  for (let i = 0; i <= 4; i++) { const a = (i / 4) * Math.PI / 2; pts.push(new THREE.Vector2(Math.max(0.0001, Math.cos(a) * r), r + len + Math.sin(a) * r)); }
+  for (let i = 0; i <= 2; i++) { const a = -Math.PI / 2 + (i / 2) * Math.PI / 2; pts.push(new THREE.Vector2(Math.max(0.0001, Math.cos(a) * r), r + Math.sin(a) * r)); }
+  for (let i = 0; i <= 2; i++) { const a = (i / 2) * Math.PI / 2; pts.push(new THREE.Vector2(Math.max(0.0001, Math.cos(a) * r), r + len + Math.sin(a) * r)); }
   const g = new THREE.LatheGeometry(pts, radial || 8); g.rotateX(Math.PI); return g; // hangs down from its joint
 }
 const PG = {
   // hips, waist, chest and shoulders, flattened front to back
   torso: (() => { const pts = [[0.0001, -0.07], [0.13, -0.06], [0.16, 0.03], [0.15, 0.12], [0.135, 0.2], [0.155, 0.3], [0.17, 0.4], [0.175, 0.47], [0.14, 0.53], [0.06, 0.565], [0.0001, 0.57]].map(([r, y]) => new THREE.Vector2(r, y));
-    const g = new THREE.LatheGeometry(pts, 14); g.scale(1, 1, 0.62); return g; })(),
+    const g = new THREE.LatheGeometry(pts, 8); g.scale(1, 1, 0.62); return g; })(),
   neck: (() => { const g = new THREE.CylinderGeometry(0.042, 0.048, 0.12, 8); g.translate(0, 0.6, 0); return g; })(),
-  head: (() => { const g = new THREE.SphereGeometry(0.1, 16, 12); g.scale(0.95, 1.15, 1.04); return g; })(),
-  ear: (() => { const g = new THREE.SphereGeometry(0.024, 6, 5); g.scale(0.45, 1, 0.75); return g; })(),
-  nose: (() => { const g = new THREE.SphereGeometry(0.017, 6, 5); g.scale(0.75, 1.05, 1.2); return g; })(),
-  eyeWhite: (() => { const g = new THREE.SphereGeometry(0.015, 8, 6); g.scale(1.2, 0.8, 0.5); return g; })(),
-  iris: new THREE.SphereGeometry(0.0085, 6, 5),
+  head: (() => { const g = new THREE.SphereGeometry(0.1, 10, 7); g.scale(0.95, 1.15, 1.04); return g; })(),
+  ear: (() => { const g = new THREE.SphereGeometry(0.024, 4, 3); g.scale(0.45, 1, 0.75); return g; })(),
+  nose: (() => { const g = new THREE.SphereGeometry(0.017, 4, 3); g.scale(0.75, 1.05, 1.2); return g; })(),
+  eyeWhite: (() => { const g = new THREE.SphereGeometry(0.015, 5, 4); g.scale(1.2, 0.8, 0.5); return g; })(),
+  iris: new THREE.SphereGeometry(0.0085, 4, 3),
   brow: new THREE.BoxGeometry(0.032, 0.007, 0.01),
   mouth: new THREE.BoxGeometry(0.034, 0.006, 0.01),
-  hairShort: (() => { const g = new THREE.SphereGeometry(0.106, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5); g.scale(0.97, 1.2, 1.08); return g; })(),
-  hairLong: (() => { const g = new THREE.SphereGeometry(0.11, 12, 10, Math.PI * 0.62, Math.PI * 1.76, 0, Math.PI * 0.8); g.scale(1, 1.75, 0.95); g.translate(0, -0.06, -0.012); return g; })(),
-  bun: new THREE.SphereGeometry(0.05, 8, 6),
-  cap: (() => { const g = new THREE.SphereGeometry(0.109, 14, 7, 0, Math.PI * 2, 0, Math.PI * 0.42); g.scale(0.98, 1.15, 1.06); return g; })(),
+  hairShort: (() => { const g = new THREE.SphereGeometry(0.106, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.5); g.scale(0.97, 1.2, 1.08); return g; })(),
+  hairLong: (() => { const g = new THREE.SphereGeometry(0.11, 9, 7, Math.PI * 0.62, Math.PI * 1.76, 0, Math.PI * 0.8); g.scale(1, 1.75, 0.95); g.translate(0, -0.06, -0.012); return g; })(),
+  bun: new THREE.SphereGeometry(0.05, 6, 4),
+  cap: (() => { const g = new THREE.SphereGeometry(0.109, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.42); g.scale(0.98, 1.15, 1.06); return g; })(),
   brim: (() => { const g = new THREE.CylinderGeometry(0.085, 0.085, 0.01, 12, 1, false, -Math.PI / 2, Math.PI); g.scale(1, 1, 0.95); g.translate(0, 0, 0.0); return g; })(),
-  upperArm: capsuleGeo(0.047, 0.2, 8),
-  forearm: capsuleGeo(0.039, 0.19, 8),
-  hand: (() => { const g = new THREE.SphereGeometry(0.042, 8, 6); g.scale(0.75, 1.15, 0.5); return g; })(),
-  thigh: capsuleGeo(0.072, 0.31, 8),
-  shin: capsuleGeo(0.054, 0.33, 8),
+  upperArm: capsuleGeo(0.047, 0.2, 5),
+  forearm: capsuleGeo(0.039, 0.19, 5),
+  hand: (() => { const g = new THREE.SphereGeometry(0.042, 5, 4); g.scale(0.75, 1.15, 0.5); return g; })(),
+  thigh: capsuleGeo(0.072, 0.31, 6),
+  shin: capsuleGeo(0.054, 0.33, 5),
   shoe: (() => { const g = new THREE.BoxGeometry(0.095, 0.07, 0.24); g.translate(0, -0.035, 0.05); return g; })(),
 };
 const crowd = { group: null, people: [], meshes: null, cheer: 0, clap: 0, aww: 0, endZ: -60, look: new THREE.Vector3() };
@@ -715,14 +714,14 @@ const CAPS = ['#1F2A44', '#B33A3A', '#F2F0EB', '#2F6B3E', '#E0B13A'];
 function buildCrowd(big) {
   if (crowd.group) scene.remove(crowd.group);
   const g = new THREE.Group(), people = [], end = new THREE.Group(); g.add(end);
-  const keep = isTouch ? 0.45 : 1;
+  const keep = isTouch ? 0.32 : 0.9;
   const seat = (x, y, z, lookX, lookZ, inEnd) => { if (rnd() < 0.12 || rnd() > keep) return; people.push({ x, y, z, seated: true, lookX, lookZ, inEnd }); };
   if (big) {
     for (const side of [-1, 1]) {
       for (let row = 0; row < 3; row++) {
         const x = side * (14.2 + row * 0.9), h = 0.5 * (row + 1);
         const step = new THREE.Mesh(new THREE.BoxGeometry(0.9, h, 36), M.wood); step.position.set(x, h / 2, -32); step.castShadow = step.receiveShadow = true; g.add(step);
-        for (let z = -15; z > -49.5; z -= 0.64) seat(x - side * 0.08, h, z + (rnd() - 0.5) * 0.15, 0, z - 4);
+        for (let z = -15; z > -49.5; z -= 0.7) seat(x - side * 0.08, h, z + (rnd() - 0.5) * 0.15, 0, z - 4);
       }
       for (let i = 0; i < 6; i++) people.push({ x: side * (13.2 + rnd() * 0.4), y: 0, z: -16 - rnd() * 32, seated: false, lookX: 0, lookZ: -20 });
     }
@@ -730,7 +729,7 @@ function buildCrowd(big) {
     for (let row = 0; row < 3; row++) {
       const z = -row * 0.9, h = 0.5 * (row + 1) + 0.6;
       const step = new THREE.Mesh(new THREE.BoxGeometry(30, h, 0.9), M.wood); step.position.set(0, h / 2, z); step.castShadow = step.receiveShadow = true; end.add(step);
-      for (let x = -14.4; x < 14.5; x += 0.64) seat(x + (rnd() - 0.5) * 0.15, h, z + 0.08, x * 0.2, 60, true);
+      for (let x = -14.4; x < 14.5; x += 0.7) seat(x + (rnd() - 0.5) * 0.15, h, z + 0.08, x * 0.2, 60, true);
     }
   } else {
     // small groups along the sides, a bit down the range where you can see them
@@ -745,8 +744,8 @@ function buildCrowd(big) {
     torso: mk(PG.torso, 1, null, true), neck: mk(PG.neck, 1, skinMat.clone()), head: mk(PG.head, 1, skinMat.clone(), true), ear: mk(PG.ear, 2, skinMat.clone()), nose: mk(PG.nose, 1, skinMat.clone()),
     eyeWhite: mk(PG.eyeWhite, 2, new THREE.MeshStandardMaterial({ roughness: 0.3 })), iris: mk(PG.iris, 2, new THREE.MeshStandardMaterial({ roughness: 0.2 })), brow: mk(PG.brow, 2), mouth: mk(PG.mouth, 1),
     hairShort: mk(PG.hairShort, 1), hairLong: mk(PG.hairLong, 1), bun: mk(PG.bun, 1), cap: mk(PG.cap, 1), brim: mk(PG.brim, 1),
-    upperArm: mk(PG.upperArm, 2, null, true), forearm: mk(PG.forearm, 2, null, true), hand: mk(PG.hand, 2, skinMat.clone()),
-    thigh: mk(PG.thigh, 2, null, true), shin: mk(PG.shin, 2, null, true), shoe: mk(PG.shoe, 2),
+    upperArm: mk(PG.upperArm, 2), forearm: mk(PG.forearm, 2), hand: mk(PG.hand, 2, skinMat.clone()),
+    thigh: mk(PG.thigh, 2), shin: mk(PG.shin, 2), shoe: mk(PG.shoe, 2),
   };
   const pick = a => a[Math.floor(rnd() * a.length)], lin = h => c.set(h).convertSRGBToLinear().clone();
   people.forEach((P, i) => {
@@ -1136,7 +1135,7 @@ function aimBy(dx, dy, sens) {
   G.yaw = clamp(G.yaw - dx * k, -0.4, 0.4);
   G.pitch = clamp(G.pitch - dy * k, -0.3, 0.5);
 }
-function canPlay() { return G && $('title').hidden && $('endcard').hidden && $('results').hidden; }
+function canPlay() { return G && $('title').hidden && $('results').hidden; }
 // On a computer the mouse aims only while it is locked to the game ("aiming").
 // Esc frees it ("edit mode"): the aim stays put and the mouse can use the panels.
 // Click the range to aim again. Where locking isn't allowed, the mouse aims only
@@ -1196,7 +1195,7 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
 const keys = {};
 addEventListener('keydown', e => {
   if (e.code === 'KeyM') { toggleMute(); return; }
-  if (!canPlay()) { if (e.code === 'Enter' && !(e.target instanceof HTMLButtonElement)) { const b = !$('title').hidden ? 'bStart' : !$('endcard').hidden ? 'bNext' : !$('results').hidden ? 'bAgain' : null; if (b) $(b).click(); } return; }
+  if (!canPlay()) { if (e.code === 'Enter' && !(e.target instanceof HTMLButtonElement)) { const b = !$('title').hidden ? 'bStart' : !$('results').hidden ? 'bAgain' : null; if (b) $(b).click(); } return; }
   // the first Esc only frees a locked mouse; the next one goes to the menu
   if (e.code === 'Escape') { if (!isLocked() && performance.now() - unlockedAt > 400 && G.state === 'aim' && !G.drawing) toTitle(); return; }
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
@@ -1309,7 +1308,13 @@ function land(kind, at, T, lx, ly, r) {
 }
 function nextArrow() {
   G.arrow++;
-  if (G.mode === 'match' && G.arrow >= 3) { G.state = 'card'; showEndCard(); return; }
+  if (G.mode === 'match' && G.arrow >= 3) {
+    if (G.end === 3) { G.state = 'card'; showResults(); return; }
+    // straight on to the next end: the target moves back and the wind picks up
+    const prev = G.ends[G.end].reduce((a, r) => a + r.s, 0);
+    setupEnd(G.end + 1);
+    showToast(ENDS[G.end].d + ' m', 'End ' + G.end + ': ' + prev + (prev === 1 ? ' point' : ' points') + ' · target moved back');
+  }
   G.state = 'aim'; G.stT = 0;
   nockedArrow.visible = true; setString(0);
   updateHud();
@@ -1501,11 +1506,20 @@ function updateMeter() {
   $('pullBtn').classList.toggle('on', G.drawing);
 }
 function showPopup(r) {
+  clearTimeout(toastTimer);
   const el = $('popup');
   const words = r.kind === 'wrong' ? ['0', 'Wrong target!'] : r.kind === 'ground' ? ['Miss', 'Into the grass'] : r.kind === 'lost' ? ['Miss', 'Over the top'] :
     r.label === 'X' ? ['10', 'Bullseye!'] : r.s === 10 ? ['10', 'Perfect!'] : r.s === 9 ? ['9', 'Great shot!'] : r.s >= 7 ? [String(r.s), 'Nice!'] : r.s >= 1 ? [String(r.s), 'On the target'] : ['0', 'Just missed the rings'];
   el.innerHTML = '<div><b>' + words[0] + '</b><span>' + words[1] + '</span></div>';
   el.className = 'popup show' + (r.s >= 9 ? ' gold' : '');
+}
+// a short message in the popup spot that fades by itself
+let toastTimer = 0;
+function showToast(big, small) {
+  const el = $('popup');
+  el.innerHTML = '<div><b style="font-size:clamp(48px,11vw,84px)">' + big + '</b><span>' + small + '</span></div>';
+  el.className = 'popup show';
+  clearTimeout(toastTimer); toastTimer = setTimeout(hidePopup, 2200);
 }
 function hidePopup() { $('popup').innerHTML = ''; $('popup').className = 'popup'; }
 function endRows(box, uptoEnd) {
@@ -1515,19 +1529,6 @@ function endRows(box, uptoEnd) {
     box.insertAdjacentHTML('beforeend', '<span class="d">' + ENDS[i].d + ' m</span><span class="arrows">' +
       list.map(r => '<span class="' + arrowClass(r) + '">' + r.label + '</span>').join('') + '</span><span class="sum' + (i === uptoEnd ? ' now' : '') + '">' + sum + '</span>');
   }
-}
-function showEndCard() {
-  unlockMouse();
-  document.body.classList.remove('playing');
-  const list = G.ends[G.end], sum = list.reduce((a, r) => a + r.s, 0);
-  if (G.end === 3) { showResults(); return; }
-  $('ecEyebrow').textContent = 'End ' + (G.end + 1) + ' of 4 · ' + ENDS[G.end].d + ' m';
-  $('ecTitle').textContent = sum + (sum === 1 ? ' point' : ' points') + (sum >= 27 ? '. Amazing!' : sum >= 21 ? '. Great end!' : '');
-  endRows($('ecEnds'), G.end);
-  const n = ENDS[G.end + 1];
-  $('ecNext').textContent = 'Next: the target moves back to ' + n.d + ' m, and the wind gets up to ' + n.w[1] + ' m/s. It can push your arrow sideways, up or down.';
-  $('endcard').hidden = false; $('hud').hidden = true; $('drawbox').hidden = true;
-  $('bNext').focus({ preventScroll: true });
 }
 function showResults() {
   unlockMouse();
@@ -1570,11 +1571,11 @@ syncHelper();
 { const b = store.get('best', null); $('titleBest').textContent = b != null ? 'Your best: ' + b + ' of 120' : ''; }
 $('bStart').addEventListener('click', () => { Snd.init(); $('title').hidden = true; newGame(); beginPlay(); });
 // switch modes from the top bar; never in the middle of a shot
-function startContest() { Snd.init(); for (const id of ['title', 'results', 'endcard']) $(id).hidden = true; newGame(); beginPlay(); }
+function startContest() { Snd.init(); for (const id of ['title', 'results']) $(id).hidden = true; newGame(); beginPlay(); }
 const canSwitch = () => G && !['flight', 'hitcam', 'return'].includes(G.state) && !G.drawing;
 $('mContest').addEventListener('click', () => { if (canSwitch() && G.mode === 'practice') startContest(); });
 $('mPractice').addEventListener('click', () => { if (canSwitch() && G.mode !== 'practice') startPractice(); });
-function startPractice() { Snd.init(); for (const id of ['title', 'results', 'endcard']) $(id).hidden = true; newGame('practice'); beginPlay(); }
+function startPractice() { Snd.init(); for (const id of ['title', 'results']) $(id).hidden = true; newGame('practice'); beginPlay(); }
 $('bPractice').addEventListener('click', startPractice);
 $('bPractice2').addEventListener('click', startPractice);
 $('pDist').innerHTML = PRACTICE_D.map(d => '<button data-v="' + d + '">' + d + ' m</button>').join('');
@@ -1606,13 +1607,12 @@ $('pClear').addEventListener('click', () => { if (!practiceReady()) return; clea
 function toTitle() {
   unlockMouse();
   G.state = 'title'; G.drawing = false; G.draw = 0;
-  for (const id of ['hud', 'drawbox', 'reticle', 'practiceBar', 'endcard', 'results']) $(id).hidden = true;
+  for (const id of ['hud', 'drawbox', 'reticle', 'practiceBar', 'results']) $(id).hidden = true;
   hidePopup(); document.body.classList.remove('playing');
   const b = store.get('best', null); $('titleBest').textContent = b != null ? 'Your best: ' + b + ' of 120' : '';
   $('title').hidden = false;
 }
 $('pMenu').addEventListener('click', () => { if (G && G.state !== 'flight') toTitle(); });
-$('bNext').addEventListener('click', () => { $('endcard').hidden = true; setupEnd(G.end + 1); beginPlay(); });
 $('bAgain').addEventListener('click', () => { $('results').hidden = true; newGame(); beginPlay(); });
 const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#fff"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
 const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#fff"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
@@ -1628,9 +1628,13 @@ function adaptResolution(dt) {
   perf.t += dt; perf.n++;
   if (perf.n < 90) return;
   const avg = perf.t / perf.n; perf.t = 0; perf.n = 0;
-  // phones keep at least 2x so the target stays crisp; the scene is lighter there instead
+  if (avg <= 0.03) return;
+  // phones keep at least 2x so the target stays crisp: first drop resolution down to that,
+  // then shed scenery (far forests, then most of the grass blades) instead
   const floor = Math.min(window.devicePixelRatio || 1, isTouch ? 2 : 1);
-  if (avg > 0.03 && pixelRatio > floor) { pixelRatio = Math.max(floor, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(); }
+  if (pixelRatio > floor) { pixelRatio = Math.max(floor, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(); }
+  else if (DETAIL.level === 0) { DETAIL.level = 1; for (const o of DETAIL.far) o.visible = false; }
+  else if (DETAIL.level === 1 && DETAIL.grass) { DETAIL.level = 2; DETAIL.grass.count = Math.floor(DETAIL.grass.count / 3); }
 }
 function resize() {
   const w = innerWidth, h = innerHeight;

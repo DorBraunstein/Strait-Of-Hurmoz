@@ -70,7 +70,7 @@ const fs = require('fs');
         results.push(await page.evaluate(() => { const r = G.ends[G.end][G.ends[G.end].length - 1]; return r.label + ':' + r.kind; }));
       }
       if (touch) break;
-      if (e < 3) { await page.waitForSelector('#endcard:not([hidden])'); if (e === 0) await shot(page, name + '-endcard'); await page.click('#bNext'); await page.mouse.move(vp.width / 2, vp.height / 2); }
+      // the next end starts on its own: the target moves back
     }
     let total = null;
     if (!touch) { await page.waitForSelector('#results:not([hidden])'); await page.waitForTimeout(300); await shot(page, name + '-results'); total = await page.evaluate(() => G.total); }
