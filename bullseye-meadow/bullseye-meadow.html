@@ -317,9 +317,10 @@ renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.08;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = isTouch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(50, 1, 0.02, 3000);
+// near plane at 10 cm keeps depth precise enough that the target face never flickers against the straw
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 3000);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 const ANISO = renderer.capabilities.getMaxAnisotropy();
@@ -404,7 +405,7 @@ const M = {
   lane: new THREE.MeshStandardMaterial({ map: TEX.lane, roughness: 0.95 }),
   straw: new THREE.MeshStandardMaterial({ map: TEX.straw, roughness: 1 }),
   strawCap: new THREE.MeshStandardMaterial({ map: TEX.straw, roughness: 1, color: col('#E2C68C') }),
-  face: new THREE.MeshStandardMaterial({ map: TEX.face, roughness: 0.85 }),
+  face: new THREE.MeshStandardMaterial({ map: TEX.face, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
   wood: new THREE.MeshStandardMaterial({ map: TEX.wood, roughness: 0.8 }),
   white: new THREE.MeshStandardMaterial({ color: col('#F4F1E8'), roughness: 0.7 }),
   trunk: new THREE.MeshStandardMaterial({ color: col('#6B4A2E'), roughness: 1 }),
@@ -485,7 +486,7 @@ bladeMat.onBeforeCompile = sh => {
     '#include <begin_vertex>\nvec4 wp = instanceMatrix * vec4(0.0,0.0,0.0,1.0);\nfloat sway = sin(time * 2.2 + wp.x * 0.35 + wp.z * 0.25) * 0.5 + 0.5;\ntransformed.x += (0.04 + wind * 0.025) * position.y * 4.0 * sway;\ntransformed.z += 0.02 * position.y * 4.0 * sin(time * 1.7 + wp.x);');
 };
 {
-  const N = isTouch ? 5000 : 9000, mesh = new THREE.InstancedMesh(bladeGeometry(), bladeMat, N);
+  const N = isTouch ? 3200 : 9000, mesh = new THREE.InstancedMesh(bladeGeometry(), bladeMat, N);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), c = new THREE.Color();
   for (let i = 0; i < N; i++) {
     let x, z;
@@ -516,7 +517,7 @@ function heightAt(x, z) {
   return Math.max(-1, near * rolling) + far * ridge;
 }
 {
-  const N = isTouch ? 220 : 320, geo = new THREE.PlaneGeometry(4400, 4400, N, N);
+  const N = isTouch ? 170 : 320, geo = new THREE.PlaneGeometry(4400, 4400, N, N);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position, cols = new Float32Array(pos.count * 3), c = new THREE.Color();
   const grass = col('#FFFFFF'), forest = col('#6F8F5A'), rock = col('#8391AC'), snow = col('#F6F5F2');
@@ -554,7 +555,7 @@ function heightAt(x, z) {
     (y > 40 || (y > 15 && rnd() < 0.5) ? pines : leafy).push([x, y, z]);
   };
   for (let i = 0; i < 260; i++) tryAdd((rnd() - 0.5) * 300, 30 - rnd() * 300);
-  for (let i = 0; i < (isTouch ? 1500 : 2800); i++) tryAdd((rnd() - 0.5) * 1400, 250 - rnd() * 1100);
+  for (let i = 0; i < (isTouch ? 800 : 2800); i++) tryAdd((rnd() - 0.5) * 1400, 250 - rnd() * 1100);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), c = new THREE.Color();
   const trunks = new THREE.InstancedMesh(trunkGeo, M.trunk, leafy.length + pines.length);
   const leaves = new THREE.InstancedMesh(leafGeo, M.leaf, leafy.length * 3);
@@ -583,7 +584,7 @@ function heightAt(x, z) {
 }
 // wildflowers in the meadow
 {
-  const N = isTouch ? 1500 : 3000, geo = new THREE.IcosahedronGeometry(0.035, 0);
+  const N = isTouch ? 1000 : 3000, geo = new THREE.IcosahedronGeometry(0.035, 0);
   const fl = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.7 }), N);
   const m = new THREE.Matrix4(), c = new THREE.Color(), colors = ['#FFE45C', '#FFD02E', '#C792EA', '#FF8FB1', '#E84B6A', '#7FB8FF', '#FFFFFF'];
   for (let i = 0; i < N; i++) {
@@ -626,7 +627,7 @@ function makeTarget(x, num, active) {
   beam(g, [-0.6, 0.62, 0.3], [0.6, 0.62, 0.3], M.wood).scale.set(1.6, 1, 1.6);
   const tilt = new THREE.Group(); tilt.position.set(0, BOSS_Y, 0.08); tilt.rotation.x = -0.16; g.add(tilt);
   const boss = new THREE.Mesh(bossGeo, [M.straw, M.strawCap, M.strawCap]); boss.castShadow = boss.receiveShadow = true; tilt.add(boss);
-  const face = new THREE.Mesh(faceGeo, M.face); face.position.z = 0.172; face.receiveShadow = true; tilt.add(face);
+  const face = new THREE.Mesh(faceGeo, M.face); face.position.z = 0.178; face.receiveShadow = true; tilt.add(face);
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.3), new THREE.MeshStandardMaterial({ map: labelTex(String(num), active ? '#FFC83D' : '#FFF6E2', '#1E2433', 128, 112), roughness: 0.8 }));
   plate.position.set(0, 0.62, 0.36); g.add(plate);
   scene.add(g);
@@ -678,7 +679,7 @@ const CAPS = ['#1F2A44', '#B33A3A', '#F2F0EB', '#2F6B3E', '#E0B13A'];
 function buildCrowd(big) {
   if (crowd.group) scene.remove(crowd.group);
   const g = new THREE.Group(), people = [], end = new THREE.Group(); g.add(end);
-  const keep = isTouch ? 0.65 : 1;
+  const keep = isTouch ? 0.45 : 1;
   const seat = (x, y, z, lookX, lookZ, inEnd) => { if (rnd() < 0.12 || rnd() > keep) return; people.push({ x, y, z, seated: true, lookX, lookZ, inEnd }); };
   if (big) {
     for (const side of [-1, 1]) {
@@ -1318,7 +1319,7 @@ function updateCamera(dt, t) {
   } else if (st === 'hitcam') {
     const H = G.hit;
     let want, look;
-    if (H.kind === 'target' || H.kind === 'wrong') { want = tmpV2.copy(H.at).add(new THREE.Vector3(0.75, 0.3, 1.9)); look = H.at; }
+    if (H.kind === 'target' || H.kind === 'wrong') { const back = camera.aspect < 0.8 ? 1.6 : 1; want = tmpV2.copy(H.at).add(new THREE.Vector3(0.75 * back, 0.3, 1.9 * back)); look = H.at; } // further back on tall phone screens so the whole target fits
     else if (H.kind === 'ground') { want = tmpV2.copy(H.at).add(new THREE.Vector3(1.2, 0.9, 1.8)); look = H.at; }
     else { want = tmpV2.copy(camera.position); look = tmpV.copy(camera.position).add(new THREE.Vector3(0, -0.2, -5)); }
     camera.position.lerp(want, 1 - Math.exp(-dt * 4));
@@ -1591,7 +1592,9 @@ function adaptResolution(dt) {
   perf.t += dt; perf.n++;
   if (perf.n < 90) return;
   const avg = perf.t / perf.n; perf.t = 0; perf.n = 0;
-  if (avg > 0.024 && pixelRatio > 1) { pixelRatio = Math.max(1, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(); }
+  // phones keep at least 1.5x so the target stays crisp; the scene is lighter there instead
+  const floor = Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 1);
+  if (avg > 0.03 && pixelRatio > floor) { pixelRatio = Math.max(floor, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(); }
 }
 function resize() {
   const w = innerWidth, h = innerHeight;
