@@ -66,6 +66,10 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
   .quiver span{width:26px;height:26px;font-size:13px}
   .hud{gap:6px}
   .end-chip .of{display:none}
+  .end-chip{padding:7px 10px 9px;flex:none}
+  .quiver{gap:4px}
+  .quiver span{width:22px;height:22px;font-size:12px;border-width:2px}
+  .modes button{padding:5px 8px;font-size:12px}
   .k{font-size:11px;letter-spacing:.08em}
   .score-chip{padding:6px 12px 8px}
   .wind-chip{gap:6px;padding:6px 6px 6px 10px}
@@ -89,6 +93,10 @@ body.playing.editing #scene{cursor:pointer}
 .meter.full .bar i{box-shadow:0 0 12px var(--gold)}
 .meter.shaky .bar i{background:var(--red)}
 .meter .pct{font-family:var(--font-display);font-weight:700;font-size:18px;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
+.pull{position:fixed;z-index:6;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
+  width:92px;height:92px;border-radius:50%;background:var(--gold);color:var(--ink);font-family:var(--font-display);font-weight:800;font-size:22px;
+  box-shadow:0 5px 0 #C9931A,0 10px 24px rgba(0,0,0,.3);touch-action:none;-webkit-user-select:none;user-select:none}
+.pull.on{transform:translateY(4px) scale(.96);box-shadow:0 1px 0 #C9931A,0 6px 14px rgba(0,0,0,.3);background:#FFB21A}
 .popup{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 7%);z-index:6;display:flex;justify-content:center;pointer-events:none;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .popup div{display:flex;flex-direction:column;align-items:center;gap:0;color:#fff;text-shadow:0 4px 16px rgba(0,0,0,.4)}
@@ -160,6 +168,7 @@ h2{font-size:clamp(34px,7vw,52px)}
 .pseg button,.pbtn{font-weight:700;font-size:14px;padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font-variant-numeric:tabular-nums}
 .pseg button:hover,.pbtn:hover{background:rgba(255,255,255,.24)}
 .pseg button[aria-pressed="true"]{background:var(--gold);color:var(--ink)}
+@media (pointer:coarse){.drawbox{align-items:flex-start;padding-right:124px}.meter{width:100%}}
 @media (max-width:600px){.practice{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 118px);left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px))}.practice.min{right:auto}.prow .k{min-width:0}.pseg button,.pbtn{padding:6px 8px;font-size:13px}}
 .error{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;font-weight:600;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){.popup.show div{animation:none}.wind-chip svg{transition:none}}
@@ -207,6 +216,8 @@ h2{font-size:clamp(34px,7vw,52px)}
   <div class="hint" id="hint">Hold to pull the string</div>
   <div class="chip meter" id="meter"><span class="k">Pull</span><div class="bar"><i id="meterFill"></i></div><span class="pct" id="meterPct">0%</span></div>
 </div>
+
+<button class="pull" id="pullBtn" hidden aria-label="Pull the bow; let go to shoot">PULL</button>
 
 <div class="popup" id="popup"></div>
 
@@ -1113,7 +1124,7 @@ document.addEventListener('pointerlockchange', () => {
 function idleHint() {
   if (!G || !canPlay() || G.state !== 'aim' || G.drawing) return;
   if (G.gusted) { setHint('The wind changed. Check the wind arrow!'); G.gusted = false; return; }
-  setHint(isTouch ? 'Press and hold to pull' : noLock ? 'Click and hold to pull' : isLocked() ? 'Hold the mouse button to pull · Esc to change settings' : 'Aim paused · click the range to aim');
+  setHint(isTouch ? 'Drag to aim · hold PULL, let go to shoot' : noLock ? 'Click and hold to pull' : isLocked() ? 'Hold the mouse button to pull · Esc to change settings' : 'Aim paused · click the range to aim');
 }
 canvas.addEventListener('pointerdown', e => {
   Snd.init();
@@ -1123,7 +1134,8 @@ canvas.addEventListener('pointerdown', e => {
   // in edit mode the first click only picks the bow back up
   if (e.pointerType === 'mouse' && !aiming()) { lockMouse(); return; }
   ptr.down = true; ptr.id = e.pointerId; ptr.x = e.clientX; ptr.y = e.clientY;
-  if (e.pointerType !== 'mouse') { try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+  // a finger on the range only aims; pulling is the PULL button's job
+  if (e.pointerType !== 'mouse') { try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } return; }
   startDraw();
 });
 addEventListener('pointermove', e => {
@@ -1142,7 +1154,7 @@ addEventListener('pointermove', e => {
   const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y; ptr.x = e.clientX; ptr.y = e.clientY;
   aimBy(dx, dy, 0.0024);
 });
-const endPtr = e => { if (!ptr.down || e.pointerId !== ptr.id) return; ptr.down = false; release(); };
+const endPtr = e => { if (!ptr.down || e.pointerId !== ptr.id) return; ptr.down = false; if (e.pointerType === 'mouse') release(); };
 canvas.addEventListener('pointerup', endPtr);
 canvas.addEventListener('pointercancel', endPtr);
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -1168,6 +1180,20 @@ function release() {
   G.drawing = false;
   if (G.draw < 0.12) { setHint('Pull longer before you let go', true); return; }
   fire(G.draw);
+}
+
+// the PULL button on touch screens: hold to pull, let go to shoot; another finger can keep aiming
+{
+  const b = $('pullBtn');
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); Snd.init();
+    if (!canPlay()) return;
+    if (G.state === 'flight' || G.state === 'hitcam') { G.ts = 4; return; }
+    try { b.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    startDraw();
+  });
+  for (const ev of ['pointerup', 'pointercancel']) b.addEventListener(ev, () => release());
+  b.addEventListener('contextmenu', e => e.preventDefault());
 }
 
 // ---------- shooting ----------
@@ -1442,6 +1468,8 @@ function updateMeter() {
   $('reticle').classList.toggle('paused', !aiming());
   document.body.classList.toggle('editing', !aiming());
   $('drawbox').hidden = !(G.state === 'aim' || G.state === 'flight');
+  $('pullBtn').hidden = !isTouch || G.state !== 'aim';
+  $('pullBtn').classList.toggle('on', G.drawing);
 }
 function showPopup(r) {
   const el = $('popup');
@@ -1504,7 +1532,7 @@ function beginPlay() {
 
 // ---------- menus ----------
 $('steps').innerHTML = isTouch
-  ? '<li><i>1</i>Press and hold the screen to pull</li><li><i>2</i>Slide your finger to aim</li><li><i>3</i>Lift your finger to shoot</li>'
+  ? '<li><i>1</i>Drag on the screen to aim</li><li><i>2</i>Hold the PULL button</li><li><i>3</i>Let go of PULL to shoot</li>'
   : '<li><i>1</i>Move the mouse to aim</li><li><i>2</i>Hold the button to pull</li><li><i>3</i>Let go to shoot</li>';
 function syncHelper() { $('helpOn').setAttribute('aria-pressed', String(S.helper)); $('helpOff').setAttribute('aria-pressed', String(!S.helper)); }
 $('helpOn').addEventListener('click', () => { S.helper = true; store.set('helper', true); syncHelper(); });

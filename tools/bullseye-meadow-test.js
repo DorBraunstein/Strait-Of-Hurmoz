@@ -44,7 +44,9 @@ const fs = require('fs');
     const press = async ms => {
       if (touch) {
         const cdp = await ctx.newCDPSession(page);
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: vp.width / 2, y: vp.height * 0.6 }] });
+        // on a phone the PULL button pulls; dragging the range only aims
+        const b = await page.evaluate(() => { const r = pullBtn.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [b] });
         await waitDraw(ms);
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       } else { await page.mouse.down(); await waitDraw(ms); await page.mouse.up(); }

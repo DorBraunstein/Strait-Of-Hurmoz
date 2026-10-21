@@ -28,8 +28,8 @@ A separate 3D archery game in `bullseye-meadow/bullseye-meadow.html` (one self-c
 
 - **Contest:** 4 ends of 3 arrows at 15, 25 and 40 m and then 60 m. Standard rings (10 in the gold down to 1, X for the inner 10); 120 is perfect, 95+ gold, 75+ silver, 50+ bronze.
 - **Practice range:** (switch to it any time from the top bar) unlimited arrows at 10-70 m, wind off, light or strong, set from a panel that folds down to one line.
-- **Aim:** click the range to lock the mouse to the game and aim; Esc switches to edit mode (aim paused, mouse free for the panel); Esc again opens the menu. Arrow keys also aim. On a phone, press, slide and lift.
-- **Pull:** hold the mouse button, the screen or Space. A weak pull is slow and drops low; a full pull flies flat. Arms always sway a little, more as you pull, and a lot if you hold a full pull too long.
+- **Aim:** click the range to lock the mouse to the game and aim; Esc switches to edit mode (aim paused, mouse free for the panel); Esc again opens the menu. Arrow keys also aim. On a phone, drag to aim and hold the PULL button, letting go to shoot.
+- **Pull:** hold the mouse button, Space, or the PULL button on a phone. A weak pull is slow and drops low; a full pull flies flat. Arms always sway a little, more as you pull, and a lot if you hold a full pull too long.
 - **Wind:** blows one of eight ways (sideways, up, down or diagonal), gusts between arrows, and moves arrows both ways; a compass arrow shows it.
 - After every arrow the bow is lowered: each one starts pointing down below the target and has to be raised and aimed again.
 - **Crowd:** stands on both sides and behind the target in the contest, small groups in practice; they watch you and the arrow, clap for 7s and 8s, cheer for 9s and 10s and hold their heads after a bad miss.
