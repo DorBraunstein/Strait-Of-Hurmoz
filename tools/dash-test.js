@@ -64,13 +64,41 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
       }
       return { dodged, hit, why: why.join(',') };
     }, how);
+    // drones and ballistic missiles: how often each reaction escapes
+    const esc = await page.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const res = {};
+      for (const kind of ['drone', 'ball']) for (const how of ['none', 'KeyA', 'KeyS']) {
+        let ok = 0;
+        for (let n = 0; n < 4; n++) {
+          G.threats = []; G.state = 'play'; G.dirT = 999;
+          [G.p.x, G.p.y] = P(53.0, 25.6); G.p.a = 0; G.p.v = 600; G.p.hull = 100; G.p.inv = 0;
+          if (kind === 'drone') { const s = SPOTS.sites.find(q => q.n === 'Kish'); G.threats.push({ k: 'drone', x: G.p.x + 700, y: G.p.y - 900, a: 2.2, v: 300, t: 0, fuel: 40, st: 'fly', alt: 1, site: 'test', buzz: 0 }); }
+          else { const sv = SPOTS.sites; sv.push({ n: 'test', k: 'b', x: G.p.x, y: G.p.y - 2000 }); while (!launch('ball')); sv.pop(); G.threats = G.threats.slice(0, 1); }
+          let reacted = false;
+          for (let i = 0; i < 160 && G.threats.length; i++) {
+            await wait(50);
+            const m = G.threats[0];
+            if (!m) break;
+            const go = kind === 'drone' ? m.st === 'lock' : true;
+            if (go && !reacted) { reacted = true; if (how !== 'none') Input.keys[how] = true; }
+            if (how !== 'KeyS') G.p.v = Math.max(G.p.v, 600);
+            if (reacted && how === 'KeyS' && G.p.v <= 0) Input.keys.KeyS = false;
+          }
+          Input.keys.KeyA = false; Input.keys.KeyS = false;
+          if (G.p.hull >= 100) ok++;
+        }
+        res[kind + ':' + how] = ok + '/4';
+      }
+      return res;
+    });
     // sink + game over
     const end = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
       G.threats = []; G.lives = 1; G.state = 'play'; G.p.inv = 0; hurt(200, 'test'); await wait(3200);
       return { over: !document.getElementById('sOver').hidden };
     });
-    out[name] = { bootMs, ctl, ...r, dodge, ...end, errs };
+    out[name] = { bootMs, ctl, ...r, dodge, esc, ...end, errs };
     await page.close();
   }
   console.log(JSON.stringify(out, null, 1));

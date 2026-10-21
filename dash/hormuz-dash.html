@@ -153,9 +153,9 @@ kbd{font-family:var(--font-ui);font-weight:700;font-size:12px;border:1.5px solid
       <div>
         <p class="sub">WHAT IRAN FIRES</p>
         <ul class="list">
-          <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="rgba(229,65,59,.15)" stroke="#E5413B" stroke-width="2"/><circle cx="17" cy="17" r="3" fill="#E5413B"/></svg><span><b>Ballistic missiles</b>A red circle marks where one will land. Get out of it.</span></li>
+          <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="rgba(229,65,59,.15)" stroke="#E5413B" stroke-width="2"/><circle cx="17" cy="17" r="3" fill="#E5413B"/></svg><span><b>Ballistic missiles</b>Land fast where you are heading. Get out of the red circle right away.</span></li>
           <li><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M5 28 L22 11" stroke="#9AA3AB" stroke-width="3" stroke-linecap="round" opacity=".6"/><path d="M20 9l7-3-3 7z" fill="#E8EAEC" stroke="#59616A"/><circle cx="21" cy="12" r="2" fill="#F5A623"/></svg><span><b>Cruise missiles</b>Aimed at where you are heading. Change course or speed and it misses.</span></li>
-          <li><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M17 6 L28 25 L17 21 L6 25 Z" fill="#B7AA92" stroke="#5E5546"/></svg><span><b>Drones</b>Slower than you at full speed. Swerve when one dives.</span></li>
+          <li><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M17 6 L28 25 L17 21 L6 25 Z" fill="#B7AA92" stroke="#5E5546"/></svg><span><b>Drones</b>Slower than you. One blinks red before it dives: turn or brake then.</span></li>
         </ul>
       </div>
     </div>
@@ -645,7 +645,7 @@ function sitesFor(kind, maxR, minR) {
 function launch(kind) {
   const p = G.p;
   if (kind === 'cruise') {
-    if (count('cruise') >= 2) return false;
+    if (count('cruise') >= 1) return false;   // one cruise missile in the air at a time
     const list = sitesFor('c', 3000, 900); if (!list.length) return false;
     const s = pick(list);
     const tti = Math.hypot(p.x - s.x, p.y - s.y) / 780, ix = p.x + Math.cos(p.a) * p.v * tti, iy = p.y + Math.sin(p.a) * p.v * tti;
@@ -655,19 +655,21 @@ function launch(kind) {
     return true;
   }
   if (kind === 'drone') {
-    if (count('drone') >= 4) return false;
+    if (count('drone') >= 3) return false;
     const list = sitesFor('c', 3400, 700); if (!list.length) return false;
-    const s = pick(list), n = G.heat > 1.6 && Math.random() < 0.5 ? 2 : 1;
-    for (let i = 0; i < n; i++) G.threats.push({ k: 'drone', x: s.x + rand(-30, 30), y: s.y + rand(-30, 30), a: Math.atan2(p.y - s.y, p.x - s.x) + rand(-0.3, 0.3), v: 360, t: -i * 1.2, fuel: 40, st: 'fly', alt: 1, site: s.n, buzz: 0 });
+    const s = pick(list), n = G.heat > 2 && Math.random() < 0.4 ? 2 : 1;
+    for (let i = 0; i < n; i++) G.threats.push({ k: 'drone', x: s.x + rand(-30, 30), y: s.y + rand(-30, 30), a: Math.atan2(p.y - s.y, p.x - s.x) + rand(-0.3, 0.3), v: 300, t: -i * 1.5, fuel: 40, st: 'fly', alt: 1, site: s.n, buzz: 0 });
     launchFx(s); Snd.buzz();
     alertMsg((n > 1 ? n + ' DRONES · ' : 'DRONE · ') + s.n.toUpperCase());
     return true;
   }
-  if (count('ball') >= 2) return false;
+  if (count('ball') >= 3) return false;
   const list = sitesFor('b', 4600, 600); if (!list.length) return false;
-  const s = pick(list), T = 5.2, lead = rand(0.5, 0.85);
-  const tx = clamp(p.x + Math.cos(p.a) * p.v * T * lead + rand(-160, 160), 80, WW - 80), ty = clamp(p.y + Math.sin(p.a) * p.v * T * lead + rand(-160, 160), 80, WH - 80);
-  G.threats.push({ k: 'ball', sx: s.x, sy: s.y, x: tx, y: ty, r: 240, t: 0, T, site: s.n, whistled: false });
+  // it lands where you will be if you hold course; later on a second one covers where you are now
+  const s = pick(list), T = 3.6, lead = rand(0.9, 1.05);
+  const put = (x, y) => G.threats.push({ k: 'ball', sx: s.x, sy: s.y, x: clamp(x, 80, WW - 80), y: clamp(y, 80, WH - 80), r: 300, t: 0, T, site: s.n, whistled: false });
+  put(p.x + Math.cos(p.a) * p.v * T * lead + rand(-80, 80), p.y + Math.sin(p.a) * p.v * T * lead + rand(-80, 80));
+  if (G.heat > 1.4 && Math.abs(p.v) > 150 && Math.random() < 0.5) put(p.x + rand(-60, 60), p.y + rand(-60, 60));
   launchFx(s); Snd.launch();
   alertMsg('BALLISTIC MISSILE · LEAVE THE RED CIRCLE');
   return true;
@@ -703,26 +705,30 @@ function updateThreats(dt) {
       m.buzz -= dt; if (m.buzz <= 0) { m.buzz = 2.5; if (Math.hypot(m.x - CAM.x, m.y - CAM.y) < 1800) Snd.buzz(); }
       if (m.st === 'fly') {
         if (G.state === 'play') {
-          const tx = p.x + Math.cos(p.a) * p.v * 0.5, ty = p.y + Math.sin(p.a) * p.v * 0.5;
-          m.a += clamp(angDiff(m.a, Math.atan2(ty - m.y, tx - m.x)), -1.1 * dt, 1.1 * dt);
-          if (Math.hypot(p.x - m.x, p.y - m.y) < 420) {   // terminal dive at where you will be
-            m.st = 'dive'; m.tx = p.x + Math.cos(p.a) * p.v * 0.6; m.ty = p.y + Math.sin(p.a) * p.v * 0.6;
-            m.a = Math.atan2(m.ty - m.y, m.tx - m.x); m.d0 = Math.max(1, Math.hypot(m.tx - m.x, m.ty - m.y));
-          }
+          m.a += clamp(angDiff(m.a, Math.atan2(p.y - m.y, p.x - m.x)), -0.75 * dt, 0.75 * dt);
+          if (Math.hypot(p.x - m.x, p.y - m.y) < 500) { m.st = 'lock'; m.lt = 0; Snd.warn(); }   // blinks red for a moment before diving
         }
         m.x += Math.cos(m.a) * m.v * dt; m.y += Math.sin(m.a) * m.v * dt;
         if (m.t > m.fuel) { m.dead = true; splash(m.x, m.y, 0.6); }
+      } else if (m.st === 'lock') {
+        m.lt += dt;
+        m.x += Math.cos(m.a) * m.v * dt; m.y += Math.sin(m.a) * m.v * dt;
+        if (m.lt > 0.8) {
+          const ti = Math.hypot(p.x - m.x, p.y - m.y) / 650 * 0.85;   // dives at where you will be if you change nothing
+          m.st = 'dive'; m.tx = p.x + Math.cos(p.a) * p.v * ti; m.ty = p.y + Math.sin(p.a) * p.v * ti;
+          m.a = Math.atan2(m.ty - m.y, m.tx - m.x); m.d0 = Math.max(1, Math.hypot(m.tx - m.x, m.ty - m.y));
+        }
       } else {
-        const dx = m.tx - m.x, dy = m.ty - m.y, l = Math.hypot(dx, dy), step = 780 * dt;
+        const dx = m.tx - m.x, dy = m.ty - m.y, l = Math.hypot(dx, dy), step = 650 * dt;
         m.alt = clamp(l / m.d0, 0, 1);
-        if (l <= step) { m.dead = true; boom(m.tx, m.ty, 0.7); if (alive && shipDist(m.tx, m.ty) < 60) hurt(22, 'drone'); }
+        if (l <= step) { m.dead = true; boom(m.tx, m.ty, 0.7); if (alive && shipDist(m.tx, m.ty) < 40) hurt(20, 'drone'); }
         else { m.x += dx / l * step; m.y += dy / l * step; }
       }
     } else if (m.k === 'ball') {
       if (!m.whistled && m.t > m.T - 1.1) { m.whistled = true; if (Math.hypot(m.x - CAM.x, m.y - CAM.y) < 2000) Snd.whistle(); }
       if (m.t >= m.T) {
         m.dead = true; boom(m.x, m.y, 1.8);
-        if (alive) { const d = shipDist(m.x, m.y); if (d < m.r * 0.55) hurt(55, 'ballistic missile'); else if (d < m.r) hurt(22, 'ballistic missile'); }
+        if (alive) { const d = shipDist(m.x, m.y); if (d < m.r * 0.6) hurt(50, 'ballistic missile'); else if (d < m.r) hurt(25, 'ballistic missile'); }
       }
     }
   }
@@ -1151,8 +1157,9 @@ function drawDrone(m) {
   ctx.fillStyle = '#8C8270'; ctx.fillRect(-9, -15.5, 2.5, 4); ctx.fillRect(-9, 11.5, 2.5, 4);
   ctx.fillStyle = '#7A705F'; ctx.beginPath(); ctx.ellipse(1, 0, 11, 2.6, 0, 0, TAU); ctx.fill();
   ctx.strokeStyle = 'rgba(40,40,40,.45)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-11, -6); ctx.lineTo(-11, 6); ctx.stroke();
-  if (m.st === 'dive' && Math.floor(G.t * 10) % 2) { ctx.fillStyle = '#FF4136'; ctx.beginPath(); ctx.arc(9, 0, 2, 0, TAU); ctx.fill(); }
+  if (m.st !== 'fly' && Math.floor(G.t * 10) % 2) { ctx.fillStyle = '#FF4136'; ctx.beginPath(); ctx.arc(9, 0, 2, 0, TAU); ctx.fill(); }
   ctx.restore();
+  if (m.st === 'lock' && Math.floor(G.t * 8) % 2) { ctx.strokeStyle = 'rgba(229,65,59,.9)'; ctx.lineWidth = 2.5 / S; ctx.beginPath(); ctx.arc(m.x, m.y, 34, 0, TAU); ctx.stroke(); }
   if (m.st === 'dive') {
     ctx.strokeStyle = 'rgba(229,65,59,.85)'; ctx.lineWidth = 2.4 / S;
     const s = 22; ctx.beginPath(); ctx.moveTo(m.tx - s, m.ty - s); ctx.lineTo(m.tx + s, m.ty + s); ctx.moveTo(m.tx + s, m.ty - s); ctx.lineTo(m.tx - s, m.ty + s); ctx.stroke();
