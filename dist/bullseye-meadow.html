@@ -612,82 +612,140 @@ function makeTarget(x, num, active) {
 const mainTarget = makeTarget(0, 1, true);
 const targets = [mainTarget];
 
-// ---------- spectators: wooden stands full for the contest, a few onlookers for practice ----------
+// ---------- spectators: stands for the contest, a few groups watching practice ----------
+// Each person is built from instanced parts (legs, body, arms, hands, head, hair, eyes) and
+// turns their head to watch: you while you aim, the arrow in flight, then the target.
+function capsuleGeo(r, len, radial) {
+  const pts = [];
+  for (let i = 0; i <= 4; i++) { const a = -Math.PI / 2 + (i / 4) * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r, r + Math.sin(a) * r)); }
+  for (let i = 0; i <= 4; i++) { const a = (i / 4) * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r, r + len + Math.sin(a) * r)); }
+  return new THREE.LatheGeometry(pts, radial || 8);
+}
 const PG = {
-  torso: (() => { const g = new THREE.CylinderGeometry(0.16, 0.2, 0.62, 10); g.translate(0, 0.31, 0); return g; })(),
-  head: new THREE.SphereGeometry(0.125, 14, 10),
-  hair: (() => { const g = new THREE.SphereGeometry(0.135, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55); return g; })(),
-  legs: (() => { const g = new THREE.CylinderGeometry(0.15, 0.12, 0.8, 8); g.translate(0, 0.4, 0); return g; })(),
-  arm: (() => { const g = new THREE.CylinderGeometry(0.045, 0.04, 0.5, 6); g.translate(0, -0.25, 0); return g; })(),
+  torso: (() => { const g = capsuleGeo(0.17, 0.36, 10); g.scale(1.12, 1, 0.78); return g; })(),        // from the hips up
+  head: new THREE.SphereGeometry(0.115, 12, 10),
+  hair: new THREE.SphereGeometry(0.123, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.52),
+  bun: new THREE.SphereGeometry(0.075, 8, 6),
+  eye: new THREE.SphereGeometry(0.017, 6, 4),
+  limb: (() => { const g = capsuleGeo(0.06, 0.32, 7); g.rotateX(Math.PI); return g; })(),                  // hangs down from its joint, 0.44 long
+  hand: new THREE.SphereGeometry(0.05, 7, 5),
 };
-const crowd = { group: null, people: [], meshes: null, cheer: 0, clap: 0 };
-const SHIRTS = ['#E5482F', '#2C9FE0', '#FFC83D', '#7BC74D', '#B36BE0', '#FF8A3D', '#F4F1E8', '#3D7BC4', '#E86A9A', '#2E8B6E'];
+const crowd = { group: null, people: [], meshes: null, cheer: 0, clap: 0, endZ: -60, look: new THREE.Vector3() };
+const SHIRTS = ['#E5482F', '#2C9FE0', '#FFC83D', '#7BC74D', '#B36BE0', '#FF8A3D', '#F4F1E8', '#3D7BC4', '#E86A9A', '#2E8B6E', '#FFFFFF', '#F6D04D'];
 const SKINS = ['#F2C7A5', '#E0AC82', '#C98D62', '#9C6644', '#6B4430'];
-const HAIRS = ['#2B1D14', '#5A3A22', '#C9A15A', '#1A1A1A', '#8A4B2A', '#D9D2C5'];
+const HAIRS = ['#2B1D14', '#5A3A22', '#C9A15A', '#1A1A1A', '#8A4B2A', '#D9D2C5', '#E3B25A'];
+const PANTS = ['#2D3A55', '#3B3B44', '#5A6B8C', '#6B5A44', '#1F2A44', '#7A6A55'];
 function buildCrowd(big) {
   if (crowd.group) scene.remove(crowd.group);
-  const g = new THREE.Group(), people = [];
+  const g = new THREE.Group(), people = [], end = new THREE.Group(); g.add(end);
+  const seat = (x, y, z, lookX, lookZ, inEnd) => { if (rnd() < 0.12) return; people.push({ x, y, z, seated: true, lookX, lookZ, inEnd }); };
+  const keep = isTouch ? 0.65 : 1;
   if (big) {
     for (const side of [-1, 1]) {
-      // four rows of wooden benches, stepping up away from the range
-      for (let row = 0; row < 4; row++) {
-        const step = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.45 * (row + 1), 34), M.wood);
-        step.position.set(side * (17.4 + row * 0.85), 0.225 * (row + 1), -21); step.castShadow = step.receiveShadow = true; g.add(step);
-        for (let z = -5; z > -37; z -= 0.72) {
-          if (rnd() < 0.15) continue;
-          people.push({ x: side * (17.4 + row * 0.85) + (rnd() - 0.5) * 0.1, y: 0.45 * (row + 1), z: z + (rnd() - 0.5) * 0.2, side, seated: true });
-        }
+      for (let row = 0; row < 3; row++) {
+        const x = side * (14.2 + row * 0.9), h = 0.5 * (row + 1);
+        const step = new THREE.Mesh(new THREE.BoxGeometry(0.9, h, 36), M.wood); step.position.set(x, h / 2, -32); step.castShadow = step.receiveShadow = true; g.add(step);
+        for (let z = -15; z > -49.5; z -= 0.62) if (rnd() < keep) seat(x, h, z + (rnd() - 0.5) * 0.15, 0, z - 4);
       }
-      // a few standing along the front rail
-      for (let i = 0; i < 8; i++) people.push({ x: side * (15.6 + rnd() * 0.6), y: 0, z: -4 - rnd() * 32, side, seated: false });
+      for (let i = 0; i < 6; i++) people.push({ x: side * (13.2 + rnd() * 0.4), y: 0, z: -16 - rnd() * 32, seated: false, lookX: 0, lookZ: -20 });
+    }
+    // a stand behind the target, far enough back to be safe, facing the archer
+    for (let row = 0; row < 3; row++) {
+      const z = -row * 0.9, h = 0.5 * (row + 1) + 0.6;
+      const step = new THREE.Mesh(new THREE.BoxGeometry(30, h, 0.9), M.wood); step.position.set(0, h / 2, z); step.castShadow = step.receiveShadow = true; end.add(step);
+      for (let x = -14.4; x < 14.5; x += 0.62) if (rnd() < keep) seat(x + (rnd() - 0.5) * 0.15, h, z, x * 0.2, 60, true);
     }
   } else {
-    for (let i = 0; i < 14; i++) { const side = i % 2 ? 1 : -1; people.push({ x: side * (14.6 + rnd() * 3), y: 0, z: -2.5 - rnd() * 18, side, seated: false }); }
+    // little groups chatting along the sides, a bit down the range where you can see them
+    for (const [gx, gz, n] of [[-12.2, -15, 4], [-12.6, -22, 3], [-12.4, -29, 5], [12.2, -14, 3], [12.5, -20, 4], [12.3, -27, 4], [13.2, -33, 3]]) {
+      for (let i = 0; i < n; i++) people.push({ x: gx + Math.sign(gx) * rnd() * 1.4, y: 0, z: gz - rnd() * 2.6, seated: false, lookX: 0, lookZ: gz - 3 });
+    }
   }
   const n = people.length, c = new THREE.Color();
-  const mk = (geo, count) => { const m = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.8 }), count); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
-  const meshes = { torso: mk(PG.torso, n), head: mk(PG.head, n), hair: mk(PG.hair, n), legs: mk(PG.legs, n), arms: mk(PG.arm, n * 2) };
+  const mk = (geo, count, shadow) => { const m = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.75 }), count); m.castShadow = !!shadow; m.receiveShadow = true; m.frustumCulled = false; g.add(m); return m; };
+  const meshes = { torso: mk(PG.torso, n, true), head: mk(PG.head, n, true), hair: mk(PG.hair, n), bun: mk(PG.bun, n), eye: mk(PG.eye, n * 2),
+    arm: mk(PG.limb, n * 2, true), hand: mk(PG.hand, n * 2), thigh: mk(PG.limb, n * 2, true), shin: mk(PG.limb, n * 2, true) };
   people.forEach((P, i) => {
-    // face the range, turned a little toward the target
-    P.ry = Math.atan2(-P.x, -12 - P.z) + (rnd() - 0.5) * 0.3; P.ph = rnd() * 10; P.fan = 0.6 + rnd() * 0.4; P.h = 0.92 + rnd() * 0.16;
-    const shirt = SHIRTS[Math.floor(rnd() * SHIRTS.length)];
-    meshes.torso.setColorAt(i, c.set(shirt).convertSRGBToLinear());
-    meshes.arms.setColorAt(i * 2, c); meshes.arms.setColorAt(i * 2 + 1, c);
-    meshes.head.setColorAt(i, c.set(SKINS[Math.floor(rnd() * SKINS.length)]).convertSRGBToLinear());
-    meshes.hair.setColorAt(i, c.set(HAIRS[Math.floor(rnd() * HAIRS.length)]).convertSRGBToLinear());
-    meshes.legs.setColorAt(i, c.set(['#2D3A55', '#3B3B44', '#5A6B8C', '#6B5A44'][Math.floor(rnd() * 4)]).convertSRGBToLinear());
+    P.ry = Math.atan2(P.lookX - P.x, P.lookZ - P.z) + (rnd() - 0.5) * 0.25;
+    P.ph = rnd() * 10; P.fan = 0.55 + rnd() * 0.45; P.s = 0.88 + rnd() * 0.2; P.yaw = 0; P.bun = rnd() < 0.35; P.kid = rnd() < 0.18;
+    if (P.kid) P.s *= 0.72;
+    const shirt = c.set(SHIRTS[Math.floor(rnd() * SHIRTS.length)]).convertSRGBToLinear().clone();
+    const skin = c.set(SKINS[Math.floor(rnd() * SKINS.length)]).convertSRGBToLinear().clone();
+    const hair = c.set(HAIRS[Math.floor(rnd() * HAIRS.length)]).convertSRGBToLinear().clone();
+    const pants = c.set(PANTS[Math.floor(rnd() * PANTS.length)]).convertSRGBToLinear().clone();
+    meshes.torso.setColorAt(i, shirt); meshes.head.setColorAt(i, skin); meshes.hair.setColorAt(i, hair); meshes.bun.setColorAt(i, hair);
+    for (const k of [0, 1]) {
+      meshes.arm.setColorAt(i * 2 + k, shirt); meshes.hand.setColorAt(i * 2 + k, skin); meshes.eye.setColorAt(i * 2 + k, c.set('#1E1A18').convertSRGBToLinear());
+      meshes.thigh.setColorAt(i * 2 + k, pants); meshes.shin.setColorAt(i * 2 + k, pants);
+    }
   });
   scene.add(g);
-  Object.assign(crowd, { group: g, people, meshes, cheer: 0, clap: 0 });
+  Object.assign(crowd, { group: g, end, people, meshes, cheer: 0, clap: 0 });
   animateCrowd(0, 0);
 }
-const crowdDummy = new THREE.Object3D(); crowdDummy.rotation.order = 'YZX';
-const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
+const CM = { body: new THREE.Matrix4(), part: new THREE.Matrix4(), out: new THREE.Matrix4(), head: new THREE.Matrix4(), arm: new THREE.Matrix4(),
+  q: new THREE.Quaternion(), e: new THREE.Euler(0, 0, 0, 'YXZ'), p: new THREE.Vector3(), sc: new THREE.Vector3(), one: new THREE.Vector3(1, 1, 1) };
+function local(px, py, pz, rx, ry, rz, sx, sy, sz) {
+  CM.e.set(rx, ry, rz, 'YZX'); CM.q.setFromEuler(CM.e); CM.p.set(px, py, pz); CM.sc.set(sx, sy === undefined ? sx : sy, sz === undefined ? sx : sz);
+  return CM.part.compose(CM.p, CM.q, CM.sc);
+}
 function animateCrowd(dt, t) {
   crowd.cheer = Math.max(0, crowd.cheer - dt * 0.45);
   crowd.clap = Math.max(0, crowd.clap - dt * 0.4);
-  const { people, meshes } = crowd, d = crowdDummy, still = reduceMotion ? 0.3 : 1;
+  if (crowd.end) crowd.end.position.z = crowd.endZ;
+  // what everyone is watching
+  const L = crowd.look, st = G ? G.state : 'title';
+  if (st === 'flight' && G.flight) L.copy(G.flight.pos);
+  else if (st === 'hitcam' || st === 'return' || st === 'title' || st === 'card') mainTarget.face.getWorldPosition(L);
+  else L.set(0, EYE, 0);
+  const { people, meshes } = crowd, still = reduceMotion ? 0.3 : 1, k = Math.min(1, dt * 4);
   people.forEach((P, i) => {
-    const cheer = crowd.cheer * P.fan, hop = cheer * Math.max(0, Math.sin(t * 9 + P.ph)) * (P.seated ? 0.18 : 0.28) * still;
-    const sway = Math.sin(t * 1.3 + P.ph) * 0.03;
-    const base = P.y + hop, legH = P.seated ? 0 : 0.8 * P.h;
-    d.rotation.set(0, P.ry, sway);
-    if (P.seated) meshes.legs.setMatrixAt(i, HIDDEN);
-    else { d.position.set(P.x, P.y, P.z); d.scale.set(1, P.h, 1); d.updateMatrix(); meshes.legs.setMatrixAt(i, d.matrix); }
-    d.position.set(P.x, base + legH, P.z); d.scale.set(1, P.h, 1); d.updateMatrix(); meshes.torso.setMatrixAt(i, d.matrix);
-    const headY = base + legH + 0.62 * P.h + 0.13;
-    d.scale.set(1, 1, 1); d.position.set(P.x, headY, P.z); d.updateMatrix(); meshes.head.setMatrixAt(i, d.matrix); meshes.hair.setMatrixAt(i, d.matrix);
-    // arms: down and fidgeting, clapping in front, or waving overhead when cheering
-    const clap = crowd.clap * P.fan > 0.2 ? Math.abs(Math.sin(t * 14 + P.ph)) * 0.5 : 0;
-    const up = cheer > 0.25 ? 2.7 + Math.sin(t * 8 + P.ph) * 0.3 : 0.12 + clap + Math.sin(t * 2 + P.ph) * 0.04;
-    for (const s of [-1, 1]) {
-      const ox = Math.cos(P.ry) * 0.21 * s, oz = -Math.sin(P.ry) * 0.21 * s;
-      d.position.set(P.x + ox, base + legH + 0.56 * P.h, P.z + oz); d.rotation.set(clap && cheer <= 0.25 ? -0.9 : 0, P.ry, s * up); d.updateMatrix();
-      meshes.arms.setMatrixAt(i * 2 + (s > 0 ? 1 : 0), d.matrix);
+    const z = P.inEnd ? P.z + crowd.endZ : P.z, s = P.s;
+    const cheer = crowd.cheer * P.fan, hop = cheer * Math.max(0, Math.sin(t * 9 + P.ph)) * (P.seated ? 0.16 : 0.26) * still;
+    const legH = P.seated ? 0 : 0.86 * s, hipY = P.y + hop + legH;
+    CM.e.set(0, P.ry, Math.sin(t * 1.2 + P.ph) * 0.025 * still, 'YZX'); CM.q.setFromEuler(CM.e); CM.p.set(P.x, hipY, z);
+    CM.body.compose(CM.p, CM.q, CM.one);
+    const put = (mesh, idx, m) => { CM.out.multiplyMatrices(CM.body, m); mesh.setMatrixAt(idx, CM.out); };
+    // legs: straight down when standing, bent at the knee when sitting
+    for (const sd of [-1, 1]) {
+      const j = i * 2 + (sd > 0 ? 1 : 0);
+      if (P.seated) {
+        put(meshes.thigh, j, local(sd * 0.1 * s, 0.06, 0.02, -Math.PI / 2, 0, 0, s * 1.1, s, s * 1.1));
+        put(meshes.shin, j, local(sd * 0.1 * s, 0.06, 0.44 * s, 0, 0, 0, s * 1.05, s * 1.0, s * 1.05));
+      } else {
+        const sway = Math.sin(t * 1.2 + P.ph) * 0.02;
+        put(meshes.thigh, j, local(sd * 0.1 * s, 0, 0, sway, 0, sd * 0.03, s * 1.1, s, s * 1.1));
+        put(meshes.shin, j, local(sd * 0.1 * s, -0.43 * s, 0, sway, 0, sd * 0.02, s * 1.05, s, s * 1.05));
+      }
+    }
+    put(meshes.torso, i, local(0, -0.02, 0, 0, 0, 0, s));
+    // head turns toward what they're watching
+    const wx = L.x - P.x, wz = L.z - z, wantYaw = clamp(Math.atan2(wx, wz) - P.ry, -1.3, 1.3);
+    const fixYaw = ((wantYaw + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    P.yaw = lerp(P.yaw, clamp(fixYaw, -1.3, 1.3) + Math.sin(t * 0.7 + P.ph) * 0.08, k);
+    const pitch = clamp(-Math.atan2(L.y - (hipY + 0.8 * s), Math.hypot(wx, wz)), -0.5, 0.4);
+    CM.head.copy(local(0, 0.82 * s, 0, pitch, P.yaw, 0, s));
+    put(meshes.head, i, CM.head);
+    put(meshes.hair, i, CM.out.multiplyMatrices(CM.head, local(0, 0.012, -0.008, -0.25, 0, 0, 1)).clone());
+    if (P.bun) put(meshes.bun, i, CM.out.multiplyMatrices(CM.head, local(0, 0.06, -0.11, 0, 0, 0, 1)).clone()); else meshes.bun.setMatrixAt(i, HIDDEN);
+    for (const sd of [-1, 1]) put(meshes.eye, i * 2 + (sd > 0 ? 1 : 0), CM.out.multiplyMatrices(CM.head, local(sd * 0.042, 0.018, 0.103, 0, 0, 0, 1)).clone());
+    // arms: resting, clapping in front, or waving overhead
+    const clapping = crowd.clap * P.fan > 0.2 && cheer <= 0.25;
+    for (const sd of [-1, 1]) {
+      const j = i * 2 + (sd > 0 ? 1 : 0);
+      let fwd, out;
+      if (cheer > 0.25) { fwd = -0.2; out = 2.75 + Math.sin(t * 8 + P.ph + sd) * 0.25; }
+      else if (clapping) { fwd = -1.25; out = -0.35 + Math.abs(Math.sin(t * 13 + P.ph)) * 0.35; }
+      else if (P.seated) { fwd = -0.75; out = 0.12; }
+      else { fwd = Math.sin(t * 1.1 + P.ph + sd) * 0.05; out = 0.1; }
+      CM.arm.copy(local(sd * 0.22 * s, 0.6 * s, 0, fwd, 0, sd * out, s));
+      put(meshes.arm, j, CM.arm);
+      put(meshes.hand, j, CM.out.multiplyMatrices(CM.arm, local(0, -0.47, 0, 0, 0, 0, 1)).clone());
     }
   });
-  for (const k in meshes) meshes[k].instanceMatrix.needsUpdate = true;
+  for (const key in meshes) meshes[key].instanceMatrix.needsUpdate = true;
 }
+const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 
 // drifting pollen in the sunlight
 const motes = (() => {
@@ -924,6 +982,7 @@ function placeTarget(d) {
   G.D = d;
   clearArrows();
   for (const t of targets) t.g.position.z = -d;
+  crowd.endZ = -d - 26;
   // keep the sun's shadow box around the range in use
   const cz = -d / 2 + 1, half = Math.hypot(15, d / 2 + 9) + 2;
   sun.target.position.set(0, 0, cz); sun.position.set(0, 0, cz).addScaledVector(SUN_DIR, 120);
