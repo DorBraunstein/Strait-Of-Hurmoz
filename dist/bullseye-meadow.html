@@ -313,7 +313,7 @@ const col = hex => new THREE.Color(hex).convertSRGBToLinear();
 const canvas = $('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 // full sharpness on every screen; the loop lowers this only if the device can't keep up
-let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+let pixelRatio = Math.min(window.devicePixelRatio || 1, isTouch ? 2.5 : 2);
 renderer.setPixelRatio(pixelRatio);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -380,6 +380,7 @@ function drawFace(g, cx, cy, R, detail) {
   }
 }
 TEX.face = canvasTex(2048, 2048, (g, w) => drawFace(g, w / 2, w / 2, w / 2 - 1, true));
+TEX.face.anisotropy = ANISO; TEX.face.generateMipmaps = true; TEX.face.minFilter = THREE.LinearMipmapLinearFilter;
 TEX.glow = canvasTex(64, 64, (g, w) => { const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.35, 'rgba(255,255,255,.5)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, w, w); });
 // a puffy cloud: soft white lumps, lit from above and a little blue-grey underneath
 TEX.cloud = canvasTex(512, 256, (g, w, h) => {
@@ -1594,8 +1595,8 @@ function adaptResolution(dt) {
   perf.t += dt; perf.n++;
   if (perf.n < 90) return;
   const avg = perf.t / perf.n; perf.t = 0; perf.n = 0;
-  // phones keep at least 1.5x so the target stays crisp; the scene is lighter there instead
-  const floor = Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 1);
+  // phones keep at least 2x so the target stays crisp; the scene is lighter there instead
+  const floor = Math.min(window.devicePixelRatio || 1, isTouch ? 2 : 1);
   if (avg > 0.03 && pixelRatio > floor) { pixelRatio = Math.max(floor, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(); }
 }
 function resize() {
