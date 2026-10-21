@@ -20,6 +20,7 @@ A separate, simpler take on the game in `dash/hormuz-dash.html` (one self-contai
 - Load by slowing down inside a terminal ring: Al Basrah (Iraq), Mina al-Ahmadi (Kuwait), Ras Tanura (Saudi Arabia) for crude; Ras Laffan (Qatar) and Das Island (UAE) for LNG. The farther from the Strait, the better the pay. A terminal closes after you load there and reopens once you have loaded at all the others.
 - Sell by crossing the green line at 57.4°E, just past the Strait in the Gulf of Oman. Each sale repairs 30% of the hull.
 - Iran launches from real coastal and inland sites: ballistic missiles (a red circle marks the impact, leave it at once), cruise missiles (aimed at where you are heading; turn or change speed and they lose you) and drones (slower than you; one blinks red for a moment, then dives at where you are heading, so turn as it dives). Only one cruise missile flies at a time; ballistic missiles land in under four seconds and lead you. Three tankers per game.
+- **Space** (or the FIRE button on a phone) fires the tanker's gun at the nearest drone or cruise missile within range: about 90% against drones, 60% against cruise missiles, no effect on ballistic missiles. Each tanker starts with 8 bursts; every sale adds 5, up to 12. Drones come more often and in groups of up to three.
 
 Build with `./build.sh` (writes `dist/dash.html` for local play) and test with `node tools/dash-test.js "$PWD"`.
 

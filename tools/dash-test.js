@@ -104,13 +104,32 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
       document.getElementById('sOver').hidden = true;
       return { first, reloadSamePort: again, timeUp, sellLon: SELL_LON };
     });
+    // the gun: hits a drone in range, spends ammo, refuses when empty or nothing is near
+    const gun = await page.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      G.threats = []; G.state = 'play'; G.timeLeft = 300; G.paused = false; document.getElementById('bFire').hidden = false; G.dirT = 999; G.p.inv = 99; G.p.v = 0; G.p.ammo = 8; G.p.gunCd = 0;
+      [G.p.x, G.p.y] = P(53.0, 25.6);
+      const res = { noTarget: (fireGun(), G.p.ammo) };
+      let kills = 0;
+      for (let n = 0; n < 6; n++) {
+        G.p.gunCd = 0;
+        G.threats = [{ k: 'drone', x: G.p.x + 400, y: G.p.y - 200, a: 2.5, v: 0, t: 0, fuel: 40, st: 'fly', alt: 1, site: 'test', buzz: 9 }];
+        fireGun(); await wait(400); if (!G.threats.some(m => m.k === 'drone')) kills++;
+      }
+      res.droneKills = kills + '/6'; res.ammoLeft = G.p.ammo;
+      G.p.ammo = 0; G.p.gunCd = 0; G.threats = [{ k: 'drone', x: G.p.x + 400, y: G.p.y, a: 0, v: 0, t: 0, fuel: 40, st: 'fly', alt: 1, site: 'test', buzz: 9 }];
+      fireGun(); await wait(400); res.emptyStillThere = G.threats.length === 1;
+      G.threats = []; G.p.cargo = { kind: 'oil', pay: 1, from: 'x' }; G.p.x = SELL_X + 200; G.p.y = P(0, 24.6)[1]; await wait(300); res.ammoAfterSale = G.p.ammo;
+      res.fireButtonShown = !document.getElementById('bFire').hidden;
+      return res;
+    });
     // sink + game over
     const end = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
-      G.threats = []; G.lives = 1; G.state = 'play'; G.p.inv = 0; hurt(200, 'test'); await wait(3200);
+      G.timeLeft = 300; G.threats = []; G.lives = 1; G.state = 'play'; G.p.inv = 0; hurt(200, 'test'); await wait(3200);
       return { over: !document.getElementById('sOver').hidden };
     });
-    out[name] = { bootMs, ctl, ...r, dodge, esc, extra, ...end, errs };
+    out[name] = { bootMs, ctl, ...r, dodge, esc, extra, gun, ...end, errs };
     await page.close();
   }
   console.log(JSON.stringify(out, null, 1));
