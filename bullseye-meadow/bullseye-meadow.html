@@ -46,6 +46,11 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .quiver span.s7,.quiver span.s8{background:var(--red);border-color:var(--red)}
 .quiver span.s5,.quiver span.s6{background:var(--blue);border-color:var(--blue)}
 .score-chip{padding:6px 18px 8px;text-align:center}
+.center{display:flex;flex-direction:column;align-items:center;gap:6px}
+.modes{display:flex;gap:2px;padding:3px;border-radius:12px}
+.modes button{pointer-events:auto;font-weight:700;font-size:13px;padding:5px 11px;border-radius:9px;color:#fff;opacity:.8}
+.modes button:hover{opacity:1;background:rgba(255,255,255,.14)}
+.modes button[aria-pressed="true"]{background:var(--gold);color:var(--ink);opacity:1}
 .score-chip .num{font-family:var(--font-display);font-weight:800;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
 .right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 .wind-chip{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 12px}
@@ -140,7 +145,7 @@ h2{font-size:clamp(34px,7vw,52px)}
 .sub{margin:6px 0 0;color:var(--ink-2);font-size:17px;line-height:1.4}
 .btn2{font-family:var(--font-display);font-weight:700;font-size:20px;line-height:1;color:var(--ink);background:#fff;border:2px solid var(--line);border-radius:18px;padding:16px 22px 14px}
 .btn2:hover{border-color:var(--ink)}
-.practice{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 100px);z-index:6;
+.practice{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 140px);z-index:6;
   padding:10px 12px;display:flex;flex-direction:column;gap:8px;max-width:calc(100% - 32px)}
 .pbody{display:flex;flex-direction:column;gap:8px}
 .practice.min .pbody{display:none}
@@ -168,7 +173,10 @@ h2{font-size:clamp(34px,7vw,52px)}
     <div class="k" id="hEnd">End <b>1</b><span class="of"> of 4</span> · 15 m</div>
     <div class="quiver" id="hQuiver"><span></span><span></span><span></span></div>
   </div>
-  <div class="chip score-chip"><div class="k" id="hScoreK">Score</div><div class="num" id="hScore">0</div></div>
+  <div class="center">
+    <div class="chip score-chip"><div class="k" id="hScoreK">Score</div><div class="num" id="hScore">0</div></div>
+    <div class="chip modes" role="group" aria-label="Game mode"><button id="mContest" aria-pressed="true">Contest</button><button id="mPractice" aria-pressed="false">Practice</button></div>
+  </div>
   <div class="right">
     <div class="chip wind-chip">
       <div><div class="k">Wind</div><div class="v" id="hWind">0 m/s</div></div>
@@ -1402,6 +1410,8 @@ function updateHud() {
     $('hScore').textContent = G.total;
   }
   $('practiceBar').hidden = G.mode !== 'practice';
+  $('mContest').setAttribute('aria-pressed', String(G.mode !== 'practice'));
+  $('mPractice').setAttribute('aria-pressed', String(G.mode === 'practice'));
   $('hWind').textContent = G.wind.s.toFixed(1) + ' m/s';
   $('hWindArrow').style.transform = 'rotate(' + (-Math.atan2(G.wind.y, G.wind.x) * 180 / Math.PI).toFixed(0) + 'deg)';
   $('hWindArrow').style.opacity = G.wind.s < 0.2 ? 0.3 : 1;
@@ -1502,7 +1512,12 @@ $('helpOff').addEventListener('click', () => { S.helper = false; store.set('help
 syncHelper();
 { const b = store.get('best', null); $('titleBest').textContent = b != null ? 'Your best: ' + b + ' of 120' : ''; }
 $('bStart').addEventListener('click', () => { Snd.init(); $('title').hidden = true; newGame(); beginPlay(); });
-function startPractice() { Snd.init(); $('title').hidden = true; $('results').hidden = true; newGame('practice'); beginPlay(); }
+// switch modes from the top bar; never in the middle of a shot
+function startContest() { Snd.init(); for (const id of ['title', 'results', 'endcard']) $(id).hidden = true; newGame(); beginPlay(); }
+const canSwitch = () => G && !['flight', 'hitcam', 'return'].includes(G.state) && !G.drawing;
+$('mContest').addEventListener('click', () => { if (canSwitch() && G.mode === 'practice') startContest(); });
+$('mPractice').addEventListener('click', () => { if (canSwitch() && G.mode !== 'practice') startPractice(); });
+function startPractice() { Snd.init(); for (const id of ['title', 'results', 'endcard']) $(id).hidden = true; newGame('practice'); beginPlay(); }
 $('bPractice').addEventListener('click', startPractice);
 $('bPractice2').addEventListener('click', startPractice);
 $('pDist').innerHTML = PRACTICE_D.map(d => '<button data-v="' + d + '">' + d + ' m</button>').join('');
