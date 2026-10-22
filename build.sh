@@ -15,3 +15,8 @@ node -e "const s=require('fs').readFileSync('dist/artifact.html','utf8');new Fun
   printf '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0}[hidden]{display:none!important}</style></head><body>\n'
   cat dash/hormuz-dash.html; printf '</body></html>\n'; } > dist/dash.html
 node -e "const s=require('fs').readFileSync('dash/hormuz-dash.html','utf8');new Function(s.split('<script>')[1].split('</script>')[0]);" && echo "built dist/dash.html (syntax ok)"
+# Bullseye Meadow, the 3D archery game: bullseye-meadow/bullseye-meadow.html is the Artifact page, dist/bullseye-meadow.html opens locally
+{ printf '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+  printf '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0}[hidden]{display:none!important}</style></head><body>\n'
+  cat bullseye-meadow/bullseye-meadow.html; printf '</body></html>\n'; } > dist/bullseye-meadow.html
+node -e "const s=require('fs').readFileSync('bullseye-meadow/bullseye-meadow.html','utf8');new Function(s.split('<script>')[1].split('</script>')[0]);" && echo "built dist/bullseye-meadow.html (syntax ok)"
