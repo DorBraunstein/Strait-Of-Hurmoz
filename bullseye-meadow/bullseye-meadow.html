@@ -207,6 +207,7 @@ h2{font-size:clamp(34px,7vw,52px)}
   <div class="pbody" id="pBody">
   <div class="prow"><span class="k">Distance</span><div class="pseg" id="pDist"></div></div>
   <div class="prow"><span class="k">Wind</span><div class="pseg" id="pWind"><button data-v="off">Off</button><button data-v="light">Light</button><button data-v="strong">Strong</button></div></div>
+  <div class="prow"><span class="k">Target</span><div class="pseg" id="pMove"><button data-v="still">Still</button><button data-v="slow">Slow</button><button data-v="fast">Fast</button></div></div>
   <div class="prow"><button class="pbtn" id="pClear">Pull out arrows</button><button class="pbtn" id="pMenu">Menu</button></div>
   </div>
 </div>
@@ -286,6 +287,9 @@ const store = {
 const S = { helper: store.get('helper', true), muted: store.get('muted', false), pd: store.get('pd', 15), pw: store.get('pw', 'off') };
 if (!PRACTICE_D.includes(S.pd)) S.pd = 15;
 if (!PRACTICE_WIND[S.pw]) S.pw = 'off';
+// a moving target in practice: top speed in m/s as it slides along its rail
+const PRACTICE_MOVE = { still: 0, slow: 1, fast: 2.5 }, RAIL_HALF = 4.5;
+S.pm = store.get('pm', 'still'); if (PRACTICE_MOVE[S.pm] === undefined) S.pm = 'still';
 const isTouch = matchMedia('(pointer: coarse)').matches;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -670,6 +674,35 @@ function makeTarget(x, num, active) {
 }
 const mainTarget = makeTarget(0, 1, true);
 const targets = [mainTarget];
+
+// ---------- the rail for a moving target (practice) ----------
+// The stand rides on a little wheeled cart along two steel rails and slides from side to
+// side, easing to a stop at each end. It moves in game time, so it slows with the arrow-cam.
+const rail = new THREE.Group(); scene.add(rail);
+{
+  for (const dz of [-0.45, 0.45]) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(RAIL_HALF * 2 + 2.4, 0.05, 0.05), M.steel); r.position.set(0, 0.06, dz); r.castShadow = r.receiveShadow = true; rail.add(r);
+  }
+  for (let x = -RAIL_HALF - 1.1; x <= RAIL_HALF + 1.11; x += 0.8) {
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 1.3), M.wood); sl.position.set(x, 0.025, 0); sl.receiveShadow = true; rail.add(sl);
+  }
+  for (const sx of [-1, 1]) { const stop = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.25, 1.2), M.wood); stop.position.set(sx * (RAIL_HALF + 1.15), 0.12, 0); stop.castShadow = true; rail.add(stop); }
+}
+const cart = new THREE.Group(); mainTarget.g.add(cart);
+{
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 1.6), M.wood); deck.position.set(0, 0.14, -0.3); deck.castShadow = deck.receiveShadow = true; cart.add(deck);
+  const wheelGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.05, 14); wheelGeo.rotateZ(Math.PI / 2);
+  for (const sx of [-0.55, 0.55]) for (const dz of [-0.45, 0.45]) { const w = new THREE.Mesh(wheelGeo, M.steel); w.position.set(sx, 0.09, dz); w.rotation.y = Math.PI / 2; cart.add(w); }
+}
+const mover = { phase: 0, x: 0 };
+function moveTarget(dt) {
+  const v = G && G.mode === 'practice' ? PRACTICE_MOVE[S.pm] : 0;
+  rail.visible = cart.visible = v > 0;
+  // keep still while the close-up looks at the hit, so the arrow stays in view
+  if (v > 0 && G.state !== 'hitcam' && G.state !== 'return') { mover.phase += dt * v / RAIL_HALF; mover.x = Math.sin(mover.phase) * RAIL_HALF; }
+  else if (v === 0) { mover.x *= Math.max(0, 1 - dt * 3); mover.phase = Math.asin(clamp(mover.x / RAIL_HALF, -1, 1)); }
+  if (mainTarget.g.position.x !== mover.x) { mainTarget.g.position.x = mover.x; mainTarget.g.updateMatrixWorld(true); }
+}
 
 // ---------- spectators: stands for the contest, a few groups watching practice ----------
 // People are built from instanced parts with simple joints (shoulder, elbow, hip, knee, neck).
@@ -1101,6 +1134,7 @@ function placeTarget(d) {
   clearArrows();
   for (const t of targets) t.g.position.z = -d;
   crowd.endZ = -d - 26;
+  rail.position.z = -d;
   // keep the sun's shadow box around the range in use
   const cz = -d / 2 + 1, half = Math.hypot(15, d / 2 + 9) + 2;
   sun.target.position.set(0, 0, cz); sun.position.set(0, 0, cz).addScaledVector(SUN_DIR, 120);
@@ -1303,7 +1337,8 @@ function land(kind, at, T, lx, ly, r) {
   showPopup(res);
   // the crowd reacts: big cheer for 9s and 10s, applause for 7s and 8s
   const loud = G.mode === 'practice' ? 0.45 : 1;
-  if (res.s >= 9) { Snd.cheer(res.s === 10, loud); crowd.cheer = 1; } else if (res.s >= 7) { Snd.cheer(false, loud); crowd.clap = 1; } else if (res.s <= 3) crowd.aww = 1;
+  const moving = G.mode === 'practice' && S.pm !== 'still';
+  if (res.s >= 9 || (moving && res.s >= 8)) { Snd.cheer(res.s === 10 || moving, loud); crowd.cheer = 1; } else if (res.s >= 7) { Snd.cheer(false, loud); crowd.clap = 1; } else if (res.s <= 3) crowd.aww = 1;
   updateHud();
 }
 function nextArrow() {
@@ -1584,13 +1619,14 @@ S.pmin = store.get('pmin', false);
 function syncPanel() {
   $('practiceBar').classList.toggle('min', S.pmin);
   $('pToggle').setAttribute('aria-expanded', String(!S.pmin));
-  $('pSummary').textContent = S.pmin ? G.D + ' m · wind ' + S.pw : 'Practice settings';
+  $('pSummary').textContent = S.pmin ? G.D + ' m · wind ' + S.pw + (S.pm !== 'still' ? ' · moving ' + S.pm : '') : 'Practice settings';
 }
 $('pToggle').addEventListener('click', () => { S.pmin = !S.pmin; store.set('pmin', S.pmin); syncPanel(); });
 function syncPractice() {
   syncPanel();
   $('pDist').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === S.pd)));
   $('pWind').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.pw)));
+  $('pMove').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.pm)));
 }
 // practice settings apply at once, but never in the middle of a shot
 const practiceReady = () => G && G.mode === 'practice' && G.state === 'aim' && !G.drawing;
@@ -1602,6 +1638,10 @@ $('pWind').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || !practiceReady()) return;
   S.pw = b.dataset.v; store.set('pw', S.pw); G.windRange = PRACTICE_WIND[S.pw];
   setWind(G.windRange[0] + Math.random() * (G.windRange[1] - G.windRange[0]), Math.floor(Math.random() * 8)); updateHud();
+});
+$('pMove').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !practiceReady()) return;
+  S.pm = b.dataset.v; store.set('pm', S.pm); G.prac = []; updateHud();
 });
 $('pClear').addEventListener('click', () => { if (!practiceReady()) return; clearArrows(); G.prac = []; updateHud(); });
 function toTitle() {
@@ -1656,6 +1696,7 @@ function frame(now) {
   const dt = rdt * (G.state === 'flight' ? G.ts : 1);
   G.t += dt; G.stT += G.state === 'hitcam' ? rdt * (G.ts > 1 ? 3 : 1) : rdt;
   if (G.state === 'aim') updateAim(rdt);
+  moveTarget(dt);
   if (G.state === 'flight') stepArrow(dt);
   updateCamera(rdt, t);
   animateWorld(rdt, t);
